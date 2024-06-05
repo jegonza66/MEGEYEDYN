@@ -23,7 +23,6 @@ else:
     if not data_path_exists:
         raise AssertionError(f'DATA/ folder not found in main path: {main_path}')
 
-
 ctf_path = main_path + 'DATA/CTF_DATA/'
 et_path = main_path + 'DATA/ET_DATA/'
 bh_path = main_path + 'DATA/BH_DATA/'
