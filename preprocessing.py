@@ -20,7 +20,6 @@ config = setup.config()
 plot = False
 
 # Run
-evokeds = []
 for subject_code in exp_info.subjects_ids:
 
     # ---------------- Load data ----------------#
