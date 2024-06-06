@@ -11,27 +11,51 @@ class exp_info:
     Class containing the experiment information.
 
     Attributes
-    -------
-    beh_path: str
+    ----------
+    beh_path : str
         Path to the behavioural data.
-    ctf_path: str
+    ctf_path : str
         Path to the MEG data.
-    et_path: str
+    et_path : str
         Path to the Eye-Tracker data.
-    mri_path: str
+    mri_path : str
         Path to the MRI data.
-    opt_path: str
+    opt_path : str
         Path to the Digitalization data.
-    subjects_ids: list
-        List of subject's id.
-    subjects_bad_channels: list
-        List of subject's bad channels.
-    subjects_groups: list
-        List of subject's group
-    missing_bh_subjects: list
-        List of subject's ids missing behavioural data.
-    trials_loop_subjects: list
-        List of subject;s ids for subjects that took the firts version of the experiment.
+    subjects_ids : list
+        List of subject IDs.
+    bad_channels : dict
+        Dictionary of subject IDs and their corresponding bad channels.
+    screen_distance : dict
+        Dictionary of subject IDs and their distance to the screen during the experiment.
+    screen_size : dict
+        Dictionary of subject IDs and their screen size.
+    group : dict
+        Dictionary of subject IDs and their group (balanced or counterbalanced).
+    et_channel_names : dict
+        Dictionary of tracked eyes and their corresponding channel names.
+    tracked_eye : dict
+        Dictionary of subject IDs and their tracked eye.
+    no_pupil_subjects : list
+        List of subjects with missing pupil data.
+    trig_ch : str
+        Trigger channel name.
+    button_ch : str
+        Buttons channel name.
+    buttons_ch_map : dict
+        Map of button values to colors.
+    buttons_pc_map : dict
+        Map of button values to colors (PC version).
+    DAC_delay : int
+        DAC delay in milliseconds.
+    noise_recordings : list
+        List of background noise recordings date IDs.
+    empty_room_recording : dict
+        Dictionary of subject IDs and their associated background noise.
+    background_line_noise_freqs : dict
+        Dictionary of noise recording dates and their line noise frequencies.
+    line_noise_freqs : dict
+        Dictionary of subject IDs and their line noise frequencies.
     """
 
     def __init__(self):
@@ -46,48 +70,87 @@ class exp_info:
         # self.subjects_ids = ['16991001', '15584005', '13229005', '13703055', '16589013', '16425014', '17439002', '17438002', '17647001', '17478002', '16746003', '17634001']
         self.subjects_ids = ['16991001', '15584005', '13229005', '13703055', '16589013', '16425014', '17439002', '17647001']
 
-
         # Subjects bad channels
-        self.subjects_bad_channels = {'16991001': [],
-                                      '15584005': [],
-                                      '13229005': [],
-                                      '13703055': [],
-                                      '16589013': [],
-                                      '16425014': [], 
-                                      '17439002': [], 
-                                      '17438002': [], 
-                                      '17647001': [], 
-                                      '17478002': [], 
-                                      '16746003': [], 
-                                      '17634001': []
-                                      }
+        self.bad_channels = {'16991001': [],
+                             '15584005': [],
+                             '13229005': [],
+                             '13703055': [],
+                             '16589013': [],
+                             '16425014': [],
+                             '17439002': [],
+                             '17438002': [],
+                             '17647001': [],
+                             '17478002': [],
+                             '16746003': [],
+                             '17634001': []
+                             }
 
         # Distance to the screen during the experiment
-        self.screen_distance = {'16991001': 54.5, '15584005': 56.5, '13229005': 59.5, '13703055': 59.5, '16589013': 58,
-                                '16425014': 58, '17439002': 56, '17438002': 48, '17647001': 55.2, '17478002': 57, '16746003': 52.5, '17634001': 59.5}
+        self.screen_distance = {'16991001': 54.5,
+                                '15584005': 56.5,
+                                '13229005': 59.5,
+                                '13703055': 59.5,
+                                '16589013': 58,
+                                '16425014': 58,
+                                '17439002': 56,
+                                '17438002': 48,
+                                '17647001': 55.2,
+                                '17478002': 57,
+                                '16746003': 52.5,
+                                '17634001': 59.5}
 
         # Screen size
-        self.screen_size = {'16991001': 37.5, '15584005': 37.5, '13229005': 38, '13703055': 37.5, '16589013': 38,
-                            '16425014': 38, '17439002': 37.5, '17438002': 34.5, '17647001': 34, '17478002': 34, '16746003': 34, '17634001': 34}
+        self.screen_size = {'16991001': 37.5,
+                            '15584005': 37.5,
+                            '13229005': 38,
+                            '13703055': 37.5,
+                            '16589013': 38,
+                            '16425014': 38,
+                            '17439002': 37.5,
+                            '17438002': 34.5,
+                            '17647001': 34,
+                            '17478002': 34,
+                            '16746003': 34,
+                            '17634001': 34}
 
         # Subjects groups
         # For some reason participant 6 has the mapping from balanced participants
-        self.subjects_groups = {'16991001': 'balanced', '15584005': 'counterbalanced', '13229005': 'balanced', '13703055': 'counterbalanced', '16589013': 'balanced',
-                              '16425014': 'balanced', '17439002': 'counterbalanced', '17438002': 'balanced', '17647001': 'counterbalanced', '17478002': 'balanced',
-                              '16746003': 'counterbalanced', '17634001': 'balanced'}
+        self.group = {'16991001': 'balanced',
+                      '15584005': 'counterbalanced',
+                      '13229005': 'balanced',
+                      '13703055': 'counterbalanced',
+                      '16589013': 'balanced',
+                      '16425014': 'balanced',
+                      '17439002': 'counterbalanced',
+                      '17438002': 'balanced',
+                      '17647001': 'counterbalanced',
+                      '17478002': 'balanced',
+                      '16746003': 'counterbalanced',
+                      '17634001': 'balanced'}
 
         # Get et channels by name [Gaze x, Gaze y, Pupils]
         self.et_channel_names = {'right': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
                                  'left': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
-                                 'both': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
-                                 '?': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123']}
+                                 'both': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],  # Include 3 extra channel names from second eye
+                                 '?': ['UADC001-4123', 'UADC002-4123',
+                                       'UADC014-4123']}  # Exception for subjects with no tracked eye info in participants information Sheet
 
         # Tracked eye
-        self.tracked_eye = {'16991001': 'right', '15584005': 'both', '13229005': 'both', '13703055': 'both', '16589013': '?', '16425014': '?', '17439002': 'right',
-                             '17438002': 'left', '17647001': 'left', '17478002': 'both', '16746003': 'both', '17634001': 'left'}
+        self.tracked_eye = {'16991001': 'right',
+                            '15584005': 'both',
+                            '13229005': 'both',
+                            '13703055': 'both',
+                            '16589013': '?',
+                            '16425014': '?',
+                            '17439002': 'right',
+                            '17438002': 'left',
+                            '17647001': 'left',
+                            '17478002': 'both',
+                            '16746003': 'both',
+                            '17634001': 'left'}
 
         # Missing pupil data
-        exp_info.no_pupil_subjects = []
+        self.no_pupil_subjects = []
 
         # Trigger channel name
         self.trig_ch = 'UPPT002'
@@ -106,18 +169,18 @@ class exp_info:
         self.noise_recordings = ['20230630', '20230705', '20230801', '20230803', '20240305', '20240327', '20240408', '20240507']
 
         # Participants associated background noise
-        self.subjects_noise = {'16991001': '20230630',
-                               '15584005': '20230705',
-                               '13229005': '20230801',
-                               '13703055': '20230803',
-                               '16589013': '20240305',
-                               '16425014': '20240327',
-                               '17439002': '20240408',
-                               '17438002': '20240503',
-                               '17647001': '20240507',
-                               '17478002': '20240510',
-                               '16746003': '20240513',
-                               '17634001': '20240514'}
+        self.empty_room_recording = {'16991001': '20230630',
+                                     '15584005': '20230705',
+                                     '13229005': '20230801',
+                                     '13703055': '20230803',
+                                     '16589013': '20240305',
+                                     '16425014': '20240327',
+                                     '17439002': '20240408',
+                                     '17438002': '20240503',
+                                     '17647001': '20240507',
+                                     '17478002': '20240510',
+                                     '16746003': '20240513',
+                                     '17634001': '20240514'}
 
         # Notch filter line noise frequencies
         self.background_line_noise_freqs = {'20230630': (50, 57, 100, 109, 150, 200, 250, 300),
@@ -148,10 +211,10 @@ class exp_info:
 
 class config:
     """
-    Class containing the run configuration.
+    Class containing the analysis parameters.
 
     Attributes
-    -------
+    ----------
     update_config: bool
         Whether to update/save the configuration or not.
     ctf_path: str
@@ -181,15 +244,14 @@ class config:
 
     class preprocessing:
         def __init__(self):
-
             # Samples drop at begining of missing pupils signal
             self.start_interval_samples = 24
-            
+
             # Samples drop at end of missing pupils signal
             self.end_interval_samples = 24
 
             # Pupil size threshold to consider missing signal
-            self.pupil_thresh = {'16991001': -4.5, '15584005': -4.6,  '13229005': -4.6, '13703055': -4.6, '16589013': -4.6,
+            self.pupil_thresh = {'16991001': -4.5, '15584005': -4.6, '13229005': -4.6, '13703055': -4.6, '16589013': -4.6,
                                  '16425014': -4.6, '17439002': -4.6, '17438002': -4.6, '17647001': -4.6, '17478002': -4.6, '16746003': -4.6, '17634001': -4.6}
 
             # Et samples shift for ET-MEG alignment
@@ -206,9 +268,9 @@ class config:
                                  '16425014': 0, '17439002': 0, '17438002': 0, '17647001': 0, '17478002': 0, '16746003': 0, '17634001': 0}
 
 
-class raw_subject:
+class raw_subject():
     """
-    Class containing subjects data.
+    Class containing subjects data and analysis parameters.
 
     Parameters
     ----------
@@ -219,7 +281,7 @@ class raw_subject:
     ----------
     bad_channels: list
         List of bad channels.
-    beh_path: str
+    bh_path: str
         Path to the behavioural data.
     ctf_path: str
         Path to the MEG data.
@@ -233,28 +295,36 @@ class raw_subject:
         Subject id.
     """
 
-    def __init__(self, exp_info, config, subject_code=None):
+    def __init__(self, subject_code=None):
 
         # Select 1st subject by default
         if subject_code == None:
-            self.subject_id = exp_info.subjects_ids[0]
+            self.subject_id = exp_info().subjects_ids[0]
         # Select subject by index
         elif type(subject_code) == int:
-            self.subject_id = exp_info.subjects_ids[subject_code]
+            self.subject_id = exp_info().subjects_ids[subject_code]
         # Select subject by id
-        elif type(subject_code) == str and (subject_code in exp_info.subjects_ids):
+        elif type(subject_code) == str and (subject_code in exp_info().subjects_ids):
             self.subject_id = subject_code
         else:
             print('Subject not found')
 
-        # Define subject group and bad channels by matching id index
-        self.bad_channels = exp_info.subjects_bad_channels[self.subject_id]
-        self.group = exp_info.subjects_groups[self.subject_id]
-        self.buttons_pc_map = exp_info.buttons_pc_map
-        self.tracked_eye = exp_info.tracked_eye[self.subject_id]
-        self.line_noise_freqs = exp_info.line_noise_freqs[self.subject_id]
-        self.screen_distance = exp_info.screen_distance[self.subject_id]
-        self.screen_size = exp_info.screen_size[self.subject_id]
+        # Get attributes from experiment info
+        exp_info_att = exp_info().__dict__.keys()
+        for general_att in exp_info_att:
+            att = getattr(exp_info(), general_att)
+            if type(att) == dict:
+                try:
+                    # If subject_id in dictionary keys, get attribute
+                    att_value = att[self.subject_id]
+                    setattr(self, general_att, att_value)
+                except:
+                    pass
+
+        # Include extra attributes
+        self.buttons_ch_map = exp_info().buttons_ch_map
+        self.buttons_pc_map = exp_info().buttons_pc_map
+        self.et_channel_names = exp_info().et_channel_names[self.tracked_eye]
 
         # Get preprocessing and general configurations
         self.config = self.config(config=config, subject_id=self.subject_id)
@@ -310,7 +380,6 @@ class raw_subject:
                         att_value = att
                         setattr(self, general_att, att_value)
 
-
     # Raw MEG data
     def load_raw_meg_data(self):
         """
@@ -346,23 +415,23 @@ class raw_subject:
 
         return raw
 
-
     # MEG data
     def load_preproc_meg_data(self, preload=False):
         """
         Preprocessed MEG data for parent subject as raw instance of MNE.
         """
 
-        print('\nLoading Preprocessed MEG data')
-        # get subject path
-        preproc_path = paths.preproc_path
-        file_path = pathlib.Path(os.path.join(preproc_path, self.subject_id, f'Subject_{self.subject_id}_meg.fif'))
+        # Subject preprocessed data path
+        file_path = pathlib.Path(os.path.join(paths.preproc_path, self.subject_id, f'Subject_{self.subject_id}_meg.fif'))
 
-        # Load data
-        fif = mne.io.read_raw_fif(file_path, preload=preload)
+        # Try to load preprocessed data
+        try:
+            print('\nLoading Preprocessed MEG data')
+            meg_data = mne.io.read_raw_fif(file_path, preload=preload)
+        except:
+            raise ValueError(f'No previous preprocessed data found for subject {self.subject_id}')
 
-        return fif
-
+        return meg_data
 
     # ICA MEG data
     def load_ica_meg_data(self, preload=False):
@@ -370,13 +439,12 @@ class raw_subject:
         ICA MEG data for parent subject as Raw instance of MNE.
         """
 
-        print('\nLoading ICA MEG data')
-        ica_subj_path = paths.ica_path + f'{self.subject_id}/'
+        # Subject ICA data path
+        file_path = pathlib.Path(os.path.join(paths.ica_path, self.subject_id, f'Subject_{self.subject_id}_ICA.fif'))
 
         # Try to load ica data
         try:
-            print(f'Loading ica data for subject {self.subject_id}')
-            file_path = pathlib.Path(os.path.join(ica_subj_path, f'Subject_{self.subject_id}_ICA.fif'))
+            print(f'Loading ICA data for subject {self.subject_id}')
             # Load data
             ica_data = mne.io.read_raw_fif(file_path, preload=preload)
 
@@ -384,7 +452,6 @@ class raw_subject:
             raise ValueError(f'No previous ica data found for subject {self.subject_id}')
 
         return ica_data
-
 
     # ET data
     def load_raw_et_data(self):
@@ -490,7 +557,6 @@ class raw_subject:
 
         return et
 
-
     # Behavioural data
     def load_raw_bh_data(self):
         """
@@ -535,7 +601,7 @@ class noise:
         Subject id.
     """
 
-    def __init__(self, exp_info, date_id):
+    def __init__(self, date_id):
 
         # Noise recording date id
         self.subject_id = date_id
@@ -544,7 +610,7 @@ class noise:
         self.bkg_noise_dir = 'BACK_NOISE'
 
         # Noise data path
-        self.ctf_path = pathlib.Path(os.path.join(exp_info.ctf_path, self.bkg_noise_dir))
+        self.ctf_path = pathlib.Path(os.path.join(exp_info().ctf_path, self.bkg_noise_dir))
 
     # MEG data
     def load_raw_meg_data(self):
@@ -577,7 +643,6 @@ class noise:
             raise ValueError(f'No {ds_files} files found in subject directory: {subj_path}')
 
         return raw
-
 
     def load_preproc_data(self, preload=False):
         """
