@@ -1,13 +1,10 @@
 import numpy as np
 from mne.preprocessing import annotate_muscle_zscore
 import save
-import matplotlib.pyplot as plt
-plt.figure()
-plt.close('all')
 import paths
 import setup
 import load
-
+import functions_preproc
 
 preproc_path = paths.preproc_path
 plot_path = paths.plots_path
@@ -15,16 +12,17 @@ exp_info = setup.exp_info()
 
 for subject_code in exp_info.subjects_ids:
 
-    #--------- Load data ---------#
+    # --------- Load data ---------#
+    # Maybe change to using raw data and do this before preprocessing?
     subject = load.preproc_subject(exp_info=exp_info, subject_code=subject_code)
     meg_data = subject.load_preproc_meg_data()
 
-    #--------- Visual annotation ---------#
+    # --------- Visual annotation ---------#
     meg_data_visual = meg_data.copy()
     fig = meg_data_visual.pick_types(meg=True).plot(duration=25, n_channels=271, scalings=dict(mag=0.6e-12))
     fig.fake_keypress('a')
 
-    #--------- Muscle artifacts ---------#
+    # --------- Muscle artifacts ---------#
     print('Loading MEG data into memory...')
     meg_data.load_data()
     threshold_muscle = 5
@@ -37,6 +35,14 @@ for subject_code in exp_info.subjects_ids:
     annotations_bad.delete(np.where(annotations_bad.description != 'bad')[0])
     meg_data.set_annotations(meg_data.annotations + annotations_muscle + annotations_bad)
     meg_data.info['bads'] = meg_data_visual.info['bads']
+
+    # ---------------- Interpolate bads if any ----------------#
+    if len(meg_data.info['bads']) > 0:
+        # Set digitalization info in meg_data
+        meg_data = functions_preproc.set_digitlization(subject=subject, meg_data=meg_data)
+
+        # Interpolate channels
+        meg_data.interpolate_bads()
 
     # Plot new PSD from annotated data
     fig_psd = meg_data.plot_psd(picks='mag', show=True)
