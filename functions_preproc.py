@@ -62,10 +62,11 @@ def reescale_et_channels(meg_gazex_data_raw, meg_gazey_data_raw, minvoltage=-5, 
     return meg_gazex_data_scaled, meg_gazey_data_scaled
 
 
-def blinks_to_nan(exp_info, subject, meg_pupils_data_raw, meg_gazex_data_scaled, meg_gazey_data_scaled, config):
+def blinks_to_nan(exp_info, subject, meg_pupils_data_raw, meg_gazex_data_scaled, meg_gazey_data_scaled):
     print('Removing blinks')
 
     # Get configuration
+    config = subject.config.preproc
     pupil_size_thresh = config.pupil_thresh
     start_interval_samples = config.start_interval_samples
     end_interval_samples = config.end_interval_samples
@@ -120,7 +121,6 @@ def blinks_to_nan(exp_info, subject, meg_pupils_data_raw, meg_gazex_data_scaled,
 
 
 def DAC_samples(et_channels_meg, exp_info, sfreq):
-
     print('Compensating DAC delay')
     time_delay = exp_info.DAC_delay
     samples_delay = int(round(time_delay / 1000 * sfreq, 0))
@@ -136,8 +136,52 @@ def DAC_samples(et_channels_meg, exp_info, sfreq):
     return meg_gazex_data_raw, meg_gazey_data_raw, meg_pupils_data_raw
 
 
-def fixations_saccades_detection(raw, et_channels_meg, subject, sac_max_vel=1500, fix_max_amp=1.5,
-                                 screen_resolution=1920, force_run=False):
+def fixations_saccades_detection(raw, et_channels_meg, subject, sac_max_vel=1500, fix_max_amp=1.5, screen_resolution=1920, force_run=False):
+    """
+       Detects fixations, saccades, and pursuit eye movements from MEG data.
+
+       Parameters
+       ----------
+       raw : instance of Raw
+           The raw MEG data.
+       et_channels_meg : list of ndarray
+           A list containing the cleaned MEG gaze x, y, and pupil data.
+       subject : Subject
+           An instance containing subject-specific information.
+       sac_max_vel : int, optional
+           Maximum saccade velocity threshold (default is 1500).
+       fix_max_amp : float, optional
+           Maximum fixation amplitude threshold (default is 1.5).
+       screen_resolution : int, optional
+           Screen resolution in pixels (default is 1920).
+       force_run : bool, optional
+           Force the detection to run even if precomputed data exists (default is False).
+
+       Returns
+       -------
+       fixations : DataFrame
+           Detected fixations with mean positions, pupil size, and adjacent events.
+       saccades : DataFrame
+           Detected saccades after applying the velocity threshold.
+       pursuit : DataFrame
+           Detected pursuit movements.
+       subject : Subject
+           The subject instance with updated counts of detected movements.
+
+       Notes
+       -----
+       This function uses the Remodnav tool to detect eye movements and then processes
+       the detected movements to filter out undesired saccades and fixations based on
+       specified thresholds. The function also calculates the average pupil size and
+       gaze positions during each fixation.
+
+       Example
+       -------
+       >>> raw = ...  # Load raw MEG data
+       >>> et_channels_meg = [gazex_data, gazey_data, pupil_data]
+       >>> subject = setup.raw_subject(exp_info=exp_info, config=config, subject_code=subject_code)
+       >>> fixations, saccades, pursuit, subject = fixations_saccades_detection(raw, et_channels_meg, subject)
+       """
 
     out_fname = f'Fix_Sac_detection_{subject.subject_id}.tsv'
     out_folder = paths.preproc_path + subject.subject_id + '/Sac-Fix_detection/'
@@ -155,38 +199,38 @@ def fixations_saccades_detection(raw, et_channels_meg, subject, sac_max_vel=1500
             force_run = True
 
     if force_run:
-            # If not pre run data, run
-            print('\nRunning eye movements detection')
+        # If not pre run data, run
+        print('\nRunning eye movements detection')
 
-            # Define data to save to excel file needed to run the saccades detection program Remodnav
-            eye_data = {'x': meg_gazex_data_clean, 'y': meg_gazey_data_clean}
-            df = pd.DataFrame(eye_data)
+        # Define data to save to excel file needed to run the saccades detection program Remodnav
+        eye_data = {'x': meg_gazex_data_clean, 'y': meg_gazey_data_clean}
+        df = pd.DataFrame(eye_data)
 
-            # Remodnav parameters
-            fname = f'eye_data_{subject.subject_id}.csv'
-            px2deg = math.degrees(math.atan2(.5 * subject.screen_size, subject.screen_distance)) / (.5 * screen_resolution)
-            sfreq = raw.info['sfreq']
+        # Remodnav parameters
+        fname = f'eye_data_{subject.subject_id}.csv'
+        px2deg = math.degrees(math.atan2(.5 * subject.screen_size, subject.screen_distance)) / (.5 * screen_resolution)
+        sfreq = raw.info['sfreq']
 
-            # Save csv file
-            df.to_csv(fname, sep='\t', header=False, index=False)
+        # Save csv file
+        df.to_csv(fname, sep='\t', header=False, index=False)
 
-            # Run Remodnav not considering pursuit class and min fixations 100 ms
-            command = f'remodnav {fname} {out_fname} {px2deg} {sfreq} ' \
-                      f'--savgol-length {0.0195} --min-pursuit-duration {0.5} --max-pso-duration {0.05} --min-fixation-duration {0.0} --max-vel {5000}'
-            os.system(command)
+        # Run Remodnav not considering pursuit class and min fixations 100 ms
+        command = f'remodnav {fname} {out_fname} {px2deg} {sfreq} ' \
+                  f'--savgol-length {0.0195} --min-pursuit-duration {0.5} --max-pso-duration {0.05} --min-fixation-duration {0.0} --max-vel {5000}'
+        os.system(command)
 
-            # Read results file with detections
-            eye_movements = pd.read_csv(out_fname, sep='\t')
+        # Read results file with detections
+        eye_movements = pd.read_csv(out_fname, sep='\t')
 
-            # Move eye data, detections file and image to subject results directory
-            os.makedirs(out_folder, exist_ok=True)
-            # Move et data file
-            os.replace(fname, out_folder + fname)
-            # Move results file
-            os.replace(out_fname, out_folder + out_fname)
-            # Move results image
-            out_fname = out_fname.replace('tsv', 'png')
-            os.replace(out_fname, out_folder + out_fname)
+        # Move eye data, detections file and image to subject results directory
+        os.makedirs(out_folder, exist_ok=True)
+        # Move et data file
+        os.replace(fname, out_folder + fname)
+        # Move results file
+        os.replace(out_fname, out_folder + out_fname)
+        # Move results image
+        out_fname = out_fname.replace('tsv', 'png')
+        os.replace(out_fname, out_folder + out_fname)
 
     # Get saccades, fixations and pursuit
     saccades_all = copy.copy(eye_movements.loc[(eye_movements['label'] == 'SACC') | (eye_movements['label'] == 'ISAC')])
@@ -213,6 +257,7 @@ def fixations_saccades_detection(raw, et_channels_meg, subject, sac_max_vel=1500
     prev_evt = []
     next_evt = []
 
+    # ---------------- Find previous and next event of every fixation ----------------#
     # Remove fixations from and to blink
     print('Finding previous and next events')
     i = 0
@@ -224,10 +269,14 @@ def fixations_saccades_detection(raw, et_channels_meg, subject, sac_max_vel=1500
         time_thresh = 0.002  # 2 ms
         # Previous and next saccades
         try:
-            evt0 = saccades.loc[(saccades['onset'] + saccades['duration'] > fix_time - time_thresh) & (saccades['onset'] + saccades['duration'] < fix_time + time_thresh)].index.values[-1]
+            evt0 = saccades.loc[
+                (saccades['onset'] + saccades['duration'] > fix_time - time_thresh) & (saccades['onset'] + saccades['duration'] < fix_time + time_thresh)].index.values[
+                -1]
         except:
             try:
-                evt0 = pursuit.loc[(pursuit['onset'] + pursuit['duration'] > fix_time - time_thresh) & (pursuit['onset'] + pursuit['duration'] < fix_time + time_thresh)].index.values[-1]
+                evt0 = pursuit.loc[
+                    (pursuit['onset'] + pursuit['duration'] > fix_time - time_thresh) & (pursuit['onset'] + pursuit['duration'] < fix_time + time_thresh)].index.values[
+                    -1]
             except:
                 evt0 = None
         prev_evt.append(evt0)
@@ -252,10 +301,10 @@ def fixations_saccades_detection(raw, et_channels_meg, subject, sac_max_vel=1500
     fixations.dropna(subset=['prev_evt'], inplace=True)
     print(f'\nKept {len(fixations)} fixations with previous event')
 
+    # ---------------- Average pupil size in each fixation ----------------#
     print('Computing average pupil size, and x and y position')
     i = 0
     for fix_idx, fixation in fixations.iterrows():
-
         fix_time = fixation['onset']
         fix_dur = fixation['duration']
 
@@ -273,6 +322,7 @@ def fixations_saccades_detection(raw, et_channels_meg, subject, sac_max_vel=1500
         print("\rProgress: {}%".format(int((i + 1) * 100 / len(fixations))), end='')
         i += 1
 
+    # ---------------- Save to fixations DataFrame ----------------#
     print()
     fixations['mean_x'] = mean_x
     fixations['mean_y'] = mean_y
@@ -282,8 +332,60 @@ def fixations_saccades_detection(raw, et_channels_meg, subject, sac_max_vel=1500
     return fixations, saccades, pursuit, subject
 
 
-def saccades_classification(subject, saccades, raw):
+def define_events_trials_trig(raw, subject, exp_info):
+    """
+    Raw MEG data has only button presses as annotations. We want to include also trial/eyemap start/end times as events
 
+    Define events (responses) and trials start/end from triggers
+    make lists containing response times, trial start times, and trial end times, eyemap start times, eyemap end times, block start /times
+    append those lists to raw.annotations giving proper names to each event and list.
+
+
+    Parameters
+    ----------
+    raw
+    subject
+    exp_info
+
+    Returns
+    -------
+
+    """
+
+    # Plot trigger and button channel to think how to do this
+    raw.pick([exp_info.trig_ch, exp_info.button_ch]).plot()
+
+    # Get button and triggers values
+    foo = raw.get_data()
+    trig_values = set(foo[0, :])  # 0, 64, 96, 4, 16, 48, 80, 20
+
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.plot(foo[0, :])
+
+    """
+    20: exp start
+    48: Eyemap
+    64: Eyemap
+    80: Trial End
+    96: block end
+    
+    """
+
+    button_values = set(foo[1, :])  # 0, 8, 4
+    """
+    Green: 4
+    Red: 8
+    
+    1st subject:
+    Red: Target response
+    Green: Confirm / Start trial
+    """
+
+    return 0
+
+
+def saccades_classification(subject, saccades, raw):
     print('\nClassifying saccades')
 
     # Eyemap trials start and end indexes
@@ -318,8 +420,8 @@ def saccades_classification(subject, saccades, raw):
     corr_answers = subject.bh_data['corrAns']
     actual_answers = subject.description
     for i, trial in enumerate(response_trials_meg):
-        trial_idx = trial-1
-        if int(subject.buttons_pc_map[actual_answers[i]]) != corr_answers[trial_idx]: # Check if mapping of button corresponds to correct answer
+        trial_idx = trial - 1
+        if int(subject.buttons_pc_map[actual_answers[i]]) != corr_answers[trial_idx]:  # Check if mapping of button corresponds to correct answer
             corr_ans[trial_idx] = 0
         else:
             corr_ans[trial_idx] = 1
@@ -377,7 +479,7 @@ def saccades_classification(subject, saccades, raw):
         # Save sac number within block
         if block_num not in sac_numbers.keys():
             sac_numbers[block_num] = {'emap_hl': 0, 'emap_vl': 0, 'emap_hs': 0, 'emap_vs': 0, 'emap_bl': 0}
-        
+
         if emap_sac:
             # Find saccades emap trial
             sac_trial.append(None)
@@ -605,7 +707,6 @@ def saccades_classification(subject, saccades, raw):
 
 
 def fixation_classification(subject, fixations, raw):
-    
     # Eyemap trials start and end indexes
     hl_start_idx = np.where(raw.annotations.description == 'hl_start')[0]
     vl_start_idx = np.where(raw.annotations.description == 'vl_start')[0]
@@ -621,7 +722,7 @@ def fixation_classification(subject, fixations, raw):
     vs_start_times = raw.annotations.onset[vs_start_idx]
     bl_start_times = raw.annotations.onset[bl_start_idx]
     bl_end_times = raw.annotations.onset[bl_end_idx]
-    
+
     cross1_times_meg = subject.cross1
     ms_times_meg = subject.ms
     cross2_times_meg = subject.cross2
@@ -874,11 +975,10 @@ def fixation_classification(subject, fixations, raw):
 
 
 def ms_items_fixations(fixations, subject, raw, distance_threshold=70):
-
     print('Identifying fixated items in MS screen')
     # Load items data
     items_pos_path = paths.bh_path + subject.subject_id + '/'
-    items_pos = pd.read_csv(items_pos_path +'ms_items_pos.csv' )
+    items_pos = pd.read_csv(items_pos_path + 'ms_items_pos.csv')
 
     # iterate over fixations checking for trial number, then check image used, then check in item_pos the position of items and mesure distance
     fixations_ms = copy.copy(fixations.loc[fixations['screen'] == 'ms'])
@@ -893,7 +993,7 @@ def ms_items_fixations(fixations, subject, raw, distance_threshold=70):
     description = []
     onset = []
 
-     # Iterate over fixations
+    # Iterate over fixations
     for fix_idx, fix in fixations_ms.iterrows():
 
         # Get fixation trial time, and n_fix
@@ -913,7 +1013,8 @@ def ms_items_fixations(fixations, subject, raw, distance_threshold=70):
 
         # Get items position information for trial
         trial_info = items_pos.iloc[trial_idx]
-        trial_items = {key: {'X': trial_info[f'X{idx+1}'], 'Y': trial_info[f'Y{idx+1}']} for idx, key in enumerate(trial_info.keys()) if 'st' in key and trial_info[key] != 'blank.png'}
+        trial_items = {key: {'X': trial_info[f'X{idx + 1}'], 'Y': trial_info[f'Y{idx + 1}']} for idx, key in enumerate(trial_info.keys()) if
+                       'st' in key and trial_info[key] != 'blank.png'}
         # Rename st5 as target
         if 'st5' in trial_items.keys():
             trial_items['target'] = trial_items.pop('st5')
@@ -992,9 +1093,9 @@ def ms_items_fixations(fixations, subject, raw, distance_threshold=70):
 
     return raw, subject, items_pos
 
+
 def target_vs_distractor(fixations, subject, raw, distance_threshold=70, screen_res_x=1920, screen_res_y=1080,
                          img_res_x=1280, img_res_y=1024):
-
     print('Identifying fixated items in VS screen')
 
     # Load items data
@@ -1020,7 +1121,7 @@ def target_vs_distractor(fixations, subject, raw, distance_threshold=70, screen_
     description = []
     onset = []
 
-     # Iterate over fixations
+    # Iterate over fixations
     for fix_idx, fix in fixations_vs.iterrows():
 
         # Get fixation trial time, and n_fix
@@ -1116,7 +1217,7 @@ def target_vs_distractor(fixations, subject, raw, distance_threshold=70, screen_
 
 
 def add_et_channels(raw, et_channels_meg, et_channel_names):
-    #---------------- Add scaled data to meg data ----------------#
+    # ---------------- Add scaled data to meg data ----------------#
     print('\nSaving scaled et data to meg raw data structure')
     # copy raw structure
     raw_et = raw.copy()
@@ -1144,7 +1245,6 @@ def add_et_channels(raw, et_channels_meg, et_channel_names):
 
 def filter_line_noise(subject, raw, freqs=(50, 100, 110, 150, 200, 250, 300), display_fig=False, save_fig=True,
                       fig_path=None, fig_name='RAW_PSD'):
-
     # Pick filter channels
     meg_picks = mne.pick_types(raw.info, meg=True)
 
@@ -1159,7 +1259,6 @@ def filter_line_noise(subject, raw, freqs=(50, 100, 110, 150, 200, 250, 300), di
 
 
 def set_digitlization(subject, meg_data):
-
     # Load digitalization file
     dig_path = paths.opt_path
     dig_path_subject = dig_path + subject.subject_id
@@ -1189,7 +1288,7 @@ def set_digitlization(subject, meg_data):
 
 
 def overwrite_et_channels(raw, et_channels_meg, et_channel_names):
-    #---------------- Add scaled data to meg data ----------------#
+    # ---------------- Add scaled data to meg data ----------------#
     print('\nSaving scaled et data to meg raw data structure')
 
     # Get et channels idx
@@ -1216,7 +1315,6 @@ def overwrite_et_channels(raw, et_channels_meg, et_channel_names):
 
 
 def fake_blink_interpolate(meg_gazex_data_clean, meg_gazey_data_clean, meg_pupils_data_clean, sfreq, config):
-
     print('Interpolating fake blinks')
 
     # Get interpolation configuration
@@ -1259,7 +1357,6 @@ def fake_blink_interpolate(meg_gazex_data_clean, meg_gazey_data_clean, meg_pupil
 
 
 def fake_blink_interpolate2(meg_gazex_data_clean, meg_gazey_data_clean, meg_pupils_data_clean, sfreq, config):
-
     print('Interpolating fake blinks')
 
     # Get interpolation configuration
@@ -1278,8 +1375,8 @@ def fake_blink_interpolate2(meg_gazex_data_clean, meg_gazey_data_clean, meg_pupi
     missing_dist_x = []
     missing_dist_y = []
     for i in range(len(missing_start)):
-        missing_dist_x.append(abs(meg_gazex_data_clean[missing_start[i]-1] - meg_gazex_data_clean[missing_end[i]+1]))
-        missing_dist_y.append(abs(meg_gazey_data_clean[missing_start[i]-1] - meg_gazey_data_clean[missing_end[i]+1]))
+        missing_dist_x.append(abs(meg_gazex_data_clean[missing_start[i] - 1] - meg_gazex_data_clean[missing_end[i] + 1]))
+        missing_dist_y.append(abs(meg_gazey_data_clean[missing_start[i] - 1] - meg_gazey_data_clean[missing_end[i] + 1]))
 
     # Consider we enlarged the intervals when classifying for real and fake blinks
     blink_min_samples = blink_min_dur / 1000 * sfreq + start_interval_samples + end_interval_samples
@@ -1561,9 +1658,7 @@ def define_events_trials_BH(raw, subject):
     return bh_data, raw, subject
 
 
-
 def fixation_classification_BH(subject, bh_data, fixations, raw, meg_pupils_data_clean, exp_info):
-
     cross1_times_meg = subject.cross1
     response_trials_meg = subject.trial
     ms_times_meg = subject.ms
@@ -1582,8 +1677,8 @@ def fixation_classification_BH(subject, bh_data, fixations, raw, meg_pupils_data
         corr_answers = bh_data['corrAns']
         actual_answers = subject.description
         for i, trial in enumerate(response_trials_meg):
-            trial_idx = trial-1
-            if int(subject.buttons_pc_map[actual_answers[i]]) != corr_answers[trial_idx]: # Check if mapping of button corresponds to correct answer
+            trial_idx = trial - 1
+            if int(subject.buttons_pc_map[actual_answers[i]]) != corr_answers[trial_idx]:  # Check if mapping of button corresponds to correct answer
                 corr_ans[trial_idx] = 0
             else:
                 corr_ans[trial_idx] = 1
