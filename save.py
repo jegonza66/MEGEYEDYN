@@ -7,7 +7,7 @@ import pandas as pd
 import paths
 
 
-def preprocessed_data(raw, et_data_scaled, subject, config):
+def preprocessed_data(raw, et_data_scaled, subject):
     """
     Save preprocessed data
     :param raw:
@@ -45,11 +45,6 @@ def preprocessed_data(raw, et_data_scaled, subject, config):
     evt_df = pd.DataFrame([evt_id])
     preproc_evt_map_fname = f'Subject_{subject.subject_id}_eve_map.csv'
     evt_df.to_csv(preproc_save_path + preproc_evt_map_fname)
-
-    # Save configuration
-    config.update_config = False
-    config_path = paths.config_path
-    var(config, path=config_path, fname='config.pkl')
 
     print(f'Preprocessed data saved to {preproc_save_path}')
 

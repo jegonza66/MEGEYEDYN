@@ -190,26 +190,6 @@ def alignment(subject, et_gazex, meg_gazex, corrs, et_block_start, meg_block_sta
     plt.savefig(save_path + f'Signals_block{block_num + 1}.png')
 
 
-def first_fixation_delay(subject, display_fig=False, save_fig=True):
-
-    print('Plotting first fixation delay histogram')
-    if display_fig:
-        plt.ion()
-    else:
-        plt.ioff()
-
-    fixations1_fix_screen = subject.fixations.loc[(subject.fixations['screen'].isin(['cross1', 'cross2'])) & (subject.fixations['n_fix'] == 1)]
-    plt.figure()
-    plt.hist(fixations1_fix_screen['delay'], bins=40)
-    plt.title('1st fixation delay distribution')
-    plt.xlabel('Time [s]')
-
-    if save_fig:
-        save_path = paths.plots_path + 'Preprocessing/' + subject.subject_id + '/'
-        os.makedirs(save_path, exist_ok=True)
-        plt.savefig(save_path + f'{subject.subject_id} 1st fix delay dist.png')
-
-
 def fixation_duration(subject, ax=None, display_fig=False, save_fig=True):
 
     print('Plotting fixation duration histogram')
@@ -341,104 +321,6 @@ def sac_main_seq(subject, hline=None, ax=None, display_fig=False, save_fig=True)
     if save_fig:
         save_path = paths.plots_path + 'Preprocessing/' + subject.subject_id + '/'
         fname = f'{subject.subject_id} Sac Main sequence'
-        save.fig(fig=fig, path=save_path, fname=fname)
-
-
-def pupil_size_increase(subject, display_fig=False, save_fig=True):
-
-    print('Plotting pupil size sincrease to different MSS')
-    if display_fig:
-        plt.ion()
-    else:
-        plt.ioff()
-
-    fixations_pupil_s = subject.fixations.loc[(subject.fixations['screen'].isin(['cross1', 'ms', 'cross2'])) & (subject.fixations['n_fix'] == 1)]
-
-    pupil_diffs = []
-    mss = []
-    for trial in subject.trial:
-        trial_data = fixations_pupil_s.loc[fixations_pupil_s['trial'] == trial]
-
-        try:
-            if 'cross1' in trial_data['screen'].values:
-                pupil_diff = trial_data[trial_data['screen'] == 'cross2']['pupil'].values[0] - trial_data[trial_data['screen'] == 'cross1']['pupil'].values[0]
-            else:
-                pupil_diff = trial_data[trial_data['screen'] == 'cross2']['pupil'].values[0] - \
-                             trial_data[trial_data['screen'] == 'ms']['pupil'].values[0]
-            pupil_diffs.append(pupil_diff)
-            mss.append(trial_data['mss'].values[0])
-        except:
-            print(f'No cross1 or mss data in trial {trial}')
-
-    plt.figure()
-    sn.boxplot(x=mss, y=pupil_diffs)
-    plt.title('Pupil size')
-    plt.xlabel('MSS')
-    plt.ylabel('Pupil size increase (fix point 2 - 1)')
-
-    if save_fig:
-        save_path = paths.plots_path + 'Preprocessing/' + subject.subject_id + '/'
-        os.makedirs(save_path, exist_ok=True)
-        plt.savefig(save_path + f'{subject.subject_id} Pupil size increase.png')
-
-
-def performance(subject, display=False, save_fig=True):
-
-    print('Plotting performance')
-    if display:
-        plt.ion()
-    else:
-        plt.ioff()
-
-    # Get response time mean and stf by MSS
-    rt = subject.rt
-    corr_ans = subject.corr_ans
-
-    rt_1 = rt[np.where(subject.bh_data['Nstim'] == 1)[0]]
-    rt_2 = rt[np.where(subject.bh_data['Nstim'] == 2)[0]]
-    rt_4 = rt[np.where(subject.bh_data['Nstim'] == 4)[0]]
-
-    rt1_mean = np.nanmean(rt_1)
-    rt1_std = np.nanstd(rt_1)
-    rt2_mean = np.nanmean(rt_2)
-    rt2_std = np.nanstd(rt_2)
-    rt4_mean = np.nanmean(rt_4)
-    rt4_std = np.nanstd(rt_4)
-
-    # Get correct ans mean and std by MSS
-    corr_1 = corr_ans[np.where(subject.bh_data['Nstim'] == 1)[0]]
-    corr_2 = corr_ans[np.where(subject.bh_data['Nstim'] == 2)[0]]
-    corr_4 = corr_ans[np.where(subject.bh_data['Nstim'] == 4)[0]]
-
-    corr1_mean = np.mean(corr_1)
-    corr1_std = np.std(corr_1)
-    corr2_mean = np.mean(corr_2)
-    corr2_std = np.std(corr_2)
-    corr4_mean = np.mean(corr_4)
-    corr4_std = np.std(corr_4)
-
-    # Plot
-    fig, axs = plt.subplots(2, sharex=True)
-    fig.suptitle(f'Performance {subject.subject_id}')
-
-    axs[0].plot([1, 2, 4], [corr1_mean, corr2_mean, corr4_mean], 'o')
-    axs[0].errorbar(x=[1, 2, 4], y=[corr1_mean, corr2_mean, corr4_mean], yerr=[corr1_std, corr2_std, corr4_std],
-                    color='black', linewidth=0.5)
-    axs[0].set_ylim([0, 1.3])
-    axs[0].set_ylabel('Accuracy')
-    axs[0].set_xticks([1, 2, 4])
-
-    axs[1].plot([1, 2, 4], [rt1_mean, rt2_mean, rt4_mean], 'o')
-    axs[1].errorbar(x=[1, 2, 4], y=[rt1_mean, rt2_mean, rt4_mean], yerr=[rt1_std, rt2_std, rt4_std],
-                    color='black', linewidth=0.5)
-    axs[1].set_ylim([0, 10])
-    axs[1].set_ylabel('Rt')
-    axs[1].set_xlabel('MSS')
-    axs[1].set_xticks([1, 2, 4])
-
-    if save_fig:
-        save_path = paths.plots_path + 'Preprocessing/' + subject.subject_id
-        fname = f'/{subject.subject_id} Performance'
         save.fig(fig=fig, path=save_path, fname=fname)
 
 

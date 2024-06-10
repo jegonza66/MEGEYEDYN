@@ -12,8 +12,6 @@ class exp_info:
 
     Attributes
     ----------
-    beh_path : str
-        Path to the behavioural data.
     ctf_path : str
         Path to the MEG data.
     et_path : str
@@ -62,7 +60,6 @@ class exp_info:
         # Define ctf data path and files path
         self.ctf_path = paths.ctf_path
         self.et_path = paths.et_path
-        self.bh_path = paths.bh_path
         self.mri_path = paths.mri_path
         self.opt_path = paths.opt_path
 
@@ -86,6 +83,7 @@ class exp_info:
                              }
 
         # Distance to the screen during the experiment
+        # It's actually camera Check with matias if this is what we want (top/bottop of the screen)
         self.screen_distance = {'16991001': 54.5,
                                 '15584005': 56.5,
                                 '13229005': 59.5,
@@ -99,7 +97,7 @@ class exp_info:
                                 '16746003': 52.5,
                                 '17634001': 59.5}
 
-        # Screen size
+        # Screen width
         self.screen_size = {'16991001': 37.5,
                             '15584005': 37.5,
                             '13229005': 38,
@@ -128,13 +126,6 @@ class exp_info:
                       '16746003': 'counterbalanced',
                       '17634001': 'balanced'}
 
-        # Get et channels by name [Gaze x, Gaze y, Pupils]
-        self.et_channel_names = {'right': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
-                                 'left': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
-                                 'both': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],  # Include 3 extra channel names from second eye
-                                 '?': ['UADC001-4123', 'UADC002-4123',
-                                       'UADC014-4123']}  # Exception for subjects with no tracked eye info in participants information Sheet
-
         # Tracked eye
         self.tracked_eye = {'16991001': 'right',
                             '15584005': 'both',
@@ -148,6 +139,20 @@ class exp_info:
                             '17478002': 'both',
                             '16746003': 'both',
                             '17634001': 'left'}
+
+        # Get et channels by name [Gaze x, Gaze y, Pupils]
+        self.et_channel_names = {'16991001': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
+                                 '15584005': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
+                                 '13229005': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
+                                 '13703055': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
+                                 '16589013': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
+                                 '16425014': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
+                                 '17439002': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
+                                 '17438002': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
+                                 '17647001': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
+                                 '17478002': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
+                                 '16746003': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
+                                 '17634001': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123']}
 
         # Missing pupil data
         self.no_pupil_subjects = []
@@ -209,14 +214,12 @@ class exp_info:
                                  }
 
 
-class config:
+class analysis_parameters:
     """
     Class containing the analysis parameters.
 
     Attributes
     ----------
-    update_config: bool
-        Whether to update/save the configuration or not.
     ctf_path: str
         Path to the MEG data.
     et_path: str
@@ -238,7 +241,6 @@ class config:
     """
 
     def __init__(self):
-        self.update_config = True
         self.preprocessing = self.preprocessing()
         self.general = self.general()
 
@@ -251,8 +253,18 @@ class config:
             self.end_interval_samples = 24
 
             # Pupil size threshold to consider missing signal
-            self.pupil_thresh = {'16991001': -4.5, '15584005': -4.6, '13229005': -4.6, '13703055': -4.6, '16589013': -4.6,
-                                 '16425014': -4.6, '17439002': -4.6, '17438002': -4.6, '17647001': -4.6, '17478002': -4.6, '16746003': -4.6, '17634001': -4.6}
+            self.pupil_thresh = {'16991001': -4.5,
+                                 '15584005': -4.6,
+                                 '13229005': -4.6,
+                                 '13703055': -4.6,
+                                 '16589013': -4.6,
+                                 '16425014': -4.6,
+                                 '17439002': -4.6,
+                                 '17438002': -4.6,
+                                 '17647001': -4.6,
+                                 '17478002': -4.6,
+                                 '16746003': -4.6,
+                                 '17634001': -4.6}
 
             # Et samples shift for ET-MEG alignment
             self.et_samples_shift = {}
@@ -260,12 +272,32 @@ class config:
     class general:
         def __init__(self):
             # Trial reject parameter based on MEG peak to peak amplitude
-            self.reject_amp = {'16991001': 5e-12, '15584005': 5e-12, '13229005': 5e-12, '13703055': 5e-12, '16589013': 5e-12,
-                               '16425014': 5e-12, '17439002': 5e-12, '17438002': 5e-12, '17647001': 5e-12, '17478002': 5e-12, '16746003': 5e-12, '17634001': 5e-12}
+            self.reject_amp = {'16991001': 5e-12,
+                               '15584005': 5e-12,
+                               '13229005': 5e-12,
+                               '13703055': 5e-12,
+                               '16589013': 5e-12,
+                               '16425014': 5e-12,
+                               '17439002': 5e-12,
+                               '17438002': 5e-12,
+                               '17647001': 5e-12,
+                               '17478002': 5e-12,
+                               '16746003': 5e-12,
+                               '17634001': 5e-12}
 
-            # Subjects dev <-> head transformation to use
-            self.head_loc_idx = {'16991001': 0, '15584005': 0, '13229005': 0, '13703055': 0, '16589013': 0,
-                                 '16425014': 0, '17439002': 0, '17438002': 0, '17647001': 0, '17478002': 0, '16746003': 0, '17634001': 0}
+            # Subjects dev <-> head transformation to use (which head localization)
+            self.head_loc_idx = {'16991001': 0,
+                                 '15584005': 0,
+                                 '13229005': 0,
+                                 '13703055': 0,
+                                 '16589013': 0,
+                                 '16425014': 0,
+                                 '17439002': 0,
+                                 '17438002': 0,
+                                 '17647001': 0,
+                                 '17478002': 0,
+                                 '16746003': 0,
+                                 '17634001': 0}
 
 
 class raw_subject():
@@ -281,8 +313,6 @@ class raw_subject():
     ----------
     bad_channels: list
         List of bad channels.
-    bh_path: str
-        Path to the behavioural data.
     ctf_path: str
         Path to the MEG data.
     et_path: str
@@ -321,31 +351,26 @@ class raw_subject():
                 except:
                     pass
 
-        # Include extra attributes
-        self.buttons_ch_map = exp_info().buttons_ch_map
-        self.buttons_pc_map = exp_info().buttons_pc_map
-        self.et_channel_names = exp_info().et_channel_names[self.tracked_eye]
-
         # Get preprocessing and general configurations
-        self.config = self.config(config=config, subject_id=self.subject_id)
+        self.params = self.params(params=analysis_parameters(), subject_id=self.subject_id)
 
     # Subject's parameters and configuration
-    class config:
+    class params:
 
-        def __init__(self, config, subject_id):
-            self.preproc = self.preproc(config=config, subject_id=subject_id)
-            self.general = self.general(config=config, subject_id=subject_id)
+        def __init__(self, params, subject_id):
+            self.preproc = self.preproc(params=params, subject_id=subject_id)
+            self.general = self.general(params=params, subject_id=subject_id)
 
         # Configuration for preprocessing run
         class preproc:
-            def __init__(self, config, subject_id):
+            def __init__(self, params, subject_id):
 
                 # Get config.preprocessing attributes and get data for corresponding subject
-                preproc_attributes = config.preprocessing.__dict__.keys()
+                preproc_attributes = params.preprocessing.__dict__.keys()
 
                 # Iterate over attributes and get data for corresponding subject
                 for preproc_att in preproc_attributes:
-                    att = getattr(config.preprocessing, preproc_att)
+                    att = getattr(params.preprocessing, preproc_att)
                     if type(att) == dict:
                         try:
                             # If subject_id in dictionary keys, get attribute, else pass
@@ -360,14 +385,14 @@ class raw_subject():
 
         # Configuration for further analysis
         class general:
-            def __init__(self, config, subject_id):
+            def __init__(self, params, subject_id):
 
                 # Get config.preprocessing attirbutes and get data for corresponding subject
-                general_attributes = config.general.__dict__.keys()
+                general_attributes = params.general.__dict__.keys()
 
                 # Iterate over attributes and get data for conrresponding subject
                 for general_att in general_attributes:
-                    att = getattr(config.general, general_att)
+                    att = getattr(params.general, general_att)
                     if type(att) == dict:
                         try:
                             # If subject_id in dictionary keys, get attribute, else pass
@@ -403,7 +428,7 @@ class raw_subject():
             raw = mne.io.concatenate_raws(raws_list, on_mismatch='ignore')
 
             # Set dev <-> head transformation from optimal head localization
-            raw.info['dev_head_t'] = raws_list[config().general.head_loc_idx[self.subject_id]].info['dev_head_t']
+            raw.info['dev_head_t'] = raws_list[self.params.general.head_loc_idx].info['dev_head_t']
 
         # If only one session return that session as whole raw data
         elif len(ds_files) == 1:
@@ -557,13 +582,15 @@ class raw_subject():
 
         return et
 
+
     # Behavioural data
     def load_raw_bh_data(self):
         """
         Behavioural data for parent subject as pandas DataFrames.
         """
         # Get subject path
-        subj_path = pathlib.Path(os.path.join(paths.bh_path, self.subject_id))
+        raise ('Update paths to use csv within ET data.')
+        subj_path = pathlib.Path(os.path.join(paths.eh_path, self.subject_id))
         bh_file = list(subj_path.glob('*.csv'.format(self.subject_id)))[0]
 
         # Load DataFrame

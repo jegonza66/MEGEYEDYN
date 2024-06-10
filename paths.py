@@ -26,7 +26,6 @@ else:
 
 ctf_path = main_path + 'DATA/CTF_DATA/'
 et_path = main_path + 'DATA/ET_DATA/'
-bh_path = main_path + 'DATA/BH_DATA/'
 mri_path = main_path + 'DATA/MRI_DATA/'
 opt_path = main_path + 'DATA/OPT_DATA/'
 exp_path = main_path + 'Experiment/'

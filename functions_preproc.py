@@ -66,7 +66,7 @@ def blinks_to_nan(exp_info, subject, meg_pupils_data_raw, meg_gazex_data_scaled,
     print('Removing blinks')
 
     # Get configuration
-    config = subject.config.preproc
+    config = subject.params.preproc
     pupil_size_thresh = config.pupil_thresh
     start_interval_samples = config.start_interval_samples
     end_interval_samples = config.end_interval_samples
@@ -328,6 +328,39 @@ def fixations_saccades_detection(raw, et_channels_meg, subject, sac_max_vel=1500
     fixations['mean_y'] = mean_y
     fixations['pupil'] = pupil_size
     fixations = fixations.astype({'mean_x': float, 'mean_y': float, 'pupil': float, 'prev_evt': 'Int64', 'next_evt': 'Int64'})
+
+    # ---------------- Compute saccades direction ----------------#
+    sac_deg = []
+    sac_dir = []
+    for row_idx, saccade in saccades.iterrows():
+
+        # Saccades degree
+        x_dif = saccade['end_x'] - saccade['start_x']
+        y_dif = saccade['end_y'] - saccade['start_y']
+        z = complex(x_dif, y_dif)
+        deg = np.angle(z, deg=True)
+        sac_deg.append(deg)
+
+        if -15 < deg < 15:
+            dir = 'r'
+        elif 75 < deg < 105:
+            dir = 'd'
+        elif 165 < deg or deg < -165:
+            dir = 'l'
+        elif -75 > deg > -105:
+            dir = 'u'
+        else:
+            dir = 'none'
+        sac_dir.append(dir)
+
+    # Append to DataFrame
+    saccades['deg'] = sac_deg
+    saccades['dir'] = sac_dir
+
+    # Save to subject
+    subject.fixations = fixations
+    subject.saccades = saccades
+    subject.pursuit = pursuit
 
     return fixations, saccades, pursuit, subject
 
@@ -972,126 +1005,6 @@ def fixation_classification(subject, fixations, raw):
     raw.annotations.onset = np.concatenate((raw.annotations.onset, np.array(functions_general.flatten_list(onset))))
 
     return fixations, raw
-
-
-def ms_items_fixations(fixations, subject, raw, distance_threshold=70):
-    print('Identifying fixated items in MS screen')
-    # Load items data
-    items_pos_path = paths.bh_path + subject.subject_id + '/'
-    items_pos = pd.read_csv(items_pos_path + 'ms_items_pos.csv')
-
-    # iterate over fixations checking for trial number, then check image used, then check in item_pos the position of items and mesure distance
-    fixations_ms = copy.copy(fixations.loc[fixations['screen'] == 'ms'])
-
-    # Define save data variables
-    items = []
-    fix_item_distance = []
-    fix_target = []
-    trials_image = []
-    fix_id = []
-
-    description = []
-    onset = []
-
-    # Iterate over fixations
-    for fix_idx, fix in fixations_ms.iterrows():
-
-        # Get fixation trial time, and n_fix
-        trial = fix['trial']
-        trial_idx = trial - 1
-
-        n_fix = fix['n_fix']
-        fix_time = fix['onset']
-
-        # Get fixations x and y
-        fix_x = fix['mean_x']
-        fix_y = fix['mean_y']
-
-        # Get trial image
-        trial_image = subject.trial_imgs[trial_idx]
-        trials_image.append(trial_image)
-
-        # Get items position information for trial
-        trial_info = items_pos.iloc[trial_idx]
-        trial_items = {key: {'X': trial_info[f'X{idx + 1}'], 'Y': trial_info[f'Y{idx + 1}']} for idx, key in enumerate(trial_info.keys()) if
-                       'st' in key and trial_info[key] != 'blank.png'}
-        # Rename st5 as target
-        if 'st5' in trial_items.keys():
-            trial_items['target'] = trial_items.pop('st5')
-        # Make dataframe to iterate over rows
-        trial_items = pd.DataFrame(trial_items).transpose()
-
-        # Define trial save variables
-        distances = []
-        target = []
-
-        # Iterate over trial items
-        for item_idx, item in trial_items.iterrows():
-            # Item position
-            item_x = item['X']
-            item_y = item['Y']
-            item['istarget'] = int('target' == item.name)
-
-            # Fixations to item distance
-            x_dist = abs(fix_x - item_x)
-            y_dist = abs(fix_y - item_y)
-            distance = np.sqrt(x_dist ** 2 + y_dist ** 2)
-
-            distances.append(distance)
-            target.append(item['istarget'])
-
-        # Closest item to fixation
-        min_distance = np.min(np.array(distances))
-        min_distance_idx = np.argmin(np.array(distances))
-
-        if min_distance < distance_threshold:
-            item = trial_items.iloc[min_distance_idx].name
-            item_distance = min_distance
-            istarget = target[min_distance_idx]
-        else:
-            item = float('nan')
-            item_distance = float('nan')
-            istarget = float('nan')
-
-        # Save trial data
-        items.append(item)
-        fix_item_distance.append(item_distance)
-        fix_target.append(istarget)
-
-        if ~np.isnan(istarget) and istarget:
-            prefix = 'tgt'
-        elif ~np.isnan(istarget) and not istarget:
-            prefix = 'it'
-        else:
-            prefix = 'none'
-
-        id = f'{prefix}_fix_ms_t{trial}_{n_fix}'
-        fix_id.append(id)
-        description.append(id)
-        onset.append([fix_time])
-
-    # Save to fixations_vs df
-    fixations.loc[fixations['screen'] == 'ms', 'item'] = items
-    fixations.loc[fixations['screen'] == 'ms', 'fix_target'] = fix_target
-    fixations.loc[fixations['screen'] == 'ms', 'distance'] = fix_item_distance
-    fixations.loc[fixations['screen'] == 'ms', 'trial_image'] = trials_image
-    fixations.loc[fixations['screen'] == 'ms', 'id'] = fix_id
-
-    # Save to subject
-    subject.fixations = fixations
-
-    # Save to raw annotations
-    raw.annotations.description = np.concatenate((raw.annotations.description, np.array(description)))
-    raw.annotations.onset = np.concatenate((raw.annotations.onset, np.array(functions_general.flatten_list(onset))))
-
-    raw_annot = np.array([raw.annotations.onset, raw.annotations.description])
-    raw_annot = raw_annot[:, raw_annot[0].astype(float).argsort()]
-    raw.annotations.onset = raw_annot[0].astype(float)
-    raw.annotations.description = raw_annot[1]
-
-    raw.annotations.duration = np.zeros(len(raw.annotations.description))
-
-    return raw, subject, items_pos
 
 
 def target_vs_distractor(fixations, subject, raw, distance_threshold=70, screen_res_x=1920, screen_res_y=1080,
