@@ -365,7 +365,7 @@ def fixations_saccades_detection(raw, et_channels_meg, subject, sac_max_vel=1500
     return fixations, saccades, pursuit, subject
 
 
-def define_events_trials_trig(raw, subject, exp_info):
+def define_trials_trig(raw, exp_info):
     """
     Raw MEG data has only button presses as annotations. We want to include also trial/eyemap start/end times as events
 
@@ -377,45 +377,78 @@ def define_events_trials_trig(raw, subject, exp_info):
     Parameters
     ----------
     raw
-    subject
     exp_info
 
     Returns
     -------
+    raw
 
     """
+    print('Adding trial onsets from tiggers as annotations...')
 
-    # Plot trigger and button channel to think how to do this
-    raw.pick([exp_info.trig_ch, exp_info.button_ch]).plot()
+    # Extract trigger channel
+    trig_ch = raw.copy().pick(exp_info.trig_ch)
 
     # Get button and triggers values
-    foo = raw.get_data()
-    trig_values = set(foo[0, :])  # 0, 64, 96, 4, 16, 48, 80, 20
+    trig_values = trig_ch.get_data().ravel()
+    trig_dif = np.diff(trig_values)
 
-    import matplotlib.pyplot as plt
-    plt.figure()
-    plt.plot(foo[0, :])
+    # Get time array
+    meg_times = trig_ch.times
 
-    """
-    20: exp start
-    48: Eyemap
-    64: Eyemap
-    80: Trial End
-    96: block end
-    
-    """
+    # Experiment start
+    exp_start_onset = meg_times[np.where(trig_dif == 16)[0]]
+    exp_start_desc = ['exp_start']
 
-    button_values = set(foo[1, :])  # 0, 8, 4
-    """
-    Green: 4
-    Red: 8
-    
-    1st subject:
-    Red: Target response
-    Green: Confirm / Start trial
-    """
+    # Emaps start
+    emap_start_onset = meg_times[np.where(trig_dif == 48)[0]]
+    emap_start_desc = [f'emap_bl_1', f'emap_hl_1', f'emap_hs_1', f'emap_vl_1', f'emap_vs_1', f'emap_pur_1',
+                       f'emap_bl_2', f'emap_hl_2', f'emap_hs_2', f'emap_vl_2', f'emap_vs_2', f'emap_pur_2',
+                       f'emap_bl_3', f'emap_hl_3', f'emap_hs_3', f'emap_vl_3', f'emap_vs_3', f'emap_pur_3']
 
-    return 0
+    # Pre-trial pause start
+    pause_start_onset = meg_times[np.where(trig_dif == 64)[0]]
+    pause_start_desc = [f'pause_start_{i + 1}' for i in range(len(pause_start_onset))]
+
+    # Eyemap end
+    emap_end_onset = pause_start_onset[[0, 11, 22]]
+    emap_end_desc = [f'emap_end_{i + 1}' for i in range(len(emap_end_onset))]
+
+    # Trial start
+    trial_start_onset = list(meg_times[np.where(trig_dif == 80)[0]])
+    trial_start_desc = [f'trial_start_{i + 1}' for i in range(len(trial_start_onset))]
+
+    # Block end
+    block_end_onset = meg_times[np.where(trig_dif == 96)[0]]
+    block_end_desc = [f'block_end_{i + 1}' for i in range(len(block_end_onset))]
+
+    # Trial end
+    trial_end_onset = list(pause_start_onset[1:11]) + list(pause_start_onset[12:22]) + list(pause_start_onset[23:33]) + list(block_end_onset)
+    trial_end_onset.sort()
+    trial_end_desc = [f'trial_end_{i + 1}' for i in range(len(trial_end_onset))]
+
+    # Onset lists
+    onset_lists = [exp_start_onset, emap_start_onset, emap_end_onset, trial_start_onset, trial_end_onset, block_end_onset]
+    desc_lists = [exp_start_desc, emap_start_desc, emap_end_desc, trial_start_desc, trial_end_desc, block_end_desc]
+
+    # Get annotations from MEG
+    annot_onset = raw.annotations.onset
+    annot_desc = raw.annotations.description
+
+    # Iterate concatenating annotations
+    for onset, desc in zip(onset_lists, desc_lists):
+        annot_onset = np.concatenate((annot_onset, onset))
+        annot_desc = np.concatenate((annot_desc, desc))
+
+    # Order annotations chronologically
+    raw_annot = np.array([annot_onset, annot_desc])
+    raw_annot = raw_annot[:, raw_annot[0].astype(float).argsort()]
+
+    # Update annotations in MEG
+    raw.annotations.onset = raw_annot[0].astype(float)
+    raw.annotations.description = raw_annot[1]
+
+    return raw
 
 
 def saccades_classification(subject, saccades, raw):

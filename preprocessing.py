@@ -1,10 +1,7 @@
-import os.path
 import setup
 import save
 import plot_preproc
 import functions_preproc
-import paths
-import mne
 
 # Load experiment information
 exp_info = setup.exp_info()
@@ -52,6 +49,11 @@ for subject_code in exp_info.subjects_ids:
     fixations, saccades, pursuit, subject = functions_preproc.fixations_saccades_detection(raw=raw,
                                                                                            et_channels_meg=et_channels_meg,
                                                                                            subject=subject)
+
+
+    # ---------------- Annotate trils in MEG from trigger channel ----------------#
+    raw = functions_preproc.define_trials_trig(raw=raw, exp_info=exp_info)
+
 
     # ---------------- Add scaled ET data to MEG data as new channels ----------------#
     raw = functions_preproc.add_et_channels(raw=raw,
