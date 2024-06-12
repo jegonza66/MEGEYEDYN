@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import pathlib
 import os
-
+import functions_preproc
 
 class exp_info:
     """
@@ -144,8 +144,8 @@ class exp_info:
                                  '15584005': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
                                  '13229005': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
                                  '13703055': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
-                                 '16589013': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
-                                 '16425014': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
+                                 '16589013': '?',
+                                 '16425014': '?',
                                  '17439002': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
                                  '17438002': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
                                  '17647001': ['UADC001-4123', 'UADC002-4123', 'UADC014-4123'],
@@ -516,68 +516,134 @@ class raw_subject():
         # get subject path
         subj_path = pathlib.Path(os.path.join(paths.et_path, self.subject_id))
         # Load asc file
-        asc_file_path = list(subj_path.glob('*{}*.asc'.format(self.subject_id)))[0]
+        edf_file_path = str(pathlib.Path(os.path.join(subj_path, f'{self.subject_id}.edf')))
+        asc_file_path = functions_preproc.convert_edf_to_ascii(edf_file_path=edf_file_path, output_dir=subj_path)
 
-        # data structure
+        # ===== READ IN FILES ===== #
+        # Read in EyeLink file
+        f = open(asc_file_path, 'r')
+        fileTxt0 = f.read().splitlines(True)  # split into lines
+        fileTxt0 = list(filter(None, fileTxt0))  # remove emptys
+        fileTxt0 = np.array(fileTxt0)  # concert to np array for simpler indexing
+        f.close()
+
+        # Separate lines into samples and messages
+        print('Sorting lines...')
+        nLines = len(fileTxt0)
+        lineType = np.array(['OTHER'] * nLines, dtype='object')
+
+        # Usar lo de mne, particularmente para calibration.
+        # En sample tendría que filtrar lo que viene después de START y antes de END.
+
+        calibration_flag = False
+        start_flag = False
+        for iLine in range(nLines):
+            if len(fileTxt0[iLine]) < 3:
+                lineType[iLine] = 'EMPTY'
+            elif fileTxt0[iLine].startswith('*'):
+                lineType[iLine] = 'HEADER'
+            # If there is a !CAL in the line, it is a calibration line
+            elif '!CAL' in fileTxt0[iLine]:
+                lineType[iLine] = 'Calibration'
+                calibration_flag = True
+            elif fileTxt0[iLine].split()[0] == 'START' and calibration_flag:
+                calibration_flag = False
+                start_flag = True
+            elif calibration_flag:
+                lineType[iLine] = 'Calibration'
+            elif not start_flag:  # Data before the first calibration is discarded
+                lineType[iLine] = 'Non_calibrated_samples'
+            elif fileTxt0[iLine].split()[0] == 'MSG':
+                lineType[iLine] = 'MSG'
+            elif fileTxt0[iLine].split()[0] == 'ESACC':
+                lineType[iLine] = 'ESACC'
+            elif fileTxt0[iLine].split()[0] == 'EFIX':
+                lineType[iLine] = 'EFIX'
+            elif fileTxt0[iLine].split()[0] == 'EBLINK':
+                lineType[iLine] = 'EBLINK'
+            elif fileTxt0[iLine].split()[0][0].isdigit() or fileTxt0[iLine].split()[0].startswith('-'):
+                lineType[iLine] = 'SAMPLE'
+            else:
+                lineType[iLine] = 'OTHER'
+
+        # ===== PARSE EYELINK FILE ===== #
+        # Import Header
+        print('Parsing header...')
+        dfHeader = pd.read_csv(asc_file_path, skiprows=np.nonzero(lineType != 'HEADER')[0], header=None, sep='\s+')
+        # Merge columns into single strings
+        dfHeader = dfHeader.apply(lambda x: ' '.join(x.dropna().astype(str)), axis=1)
+
+        # Import Calibration
+        print('Parsing calibration...')
+        iCal = np.nonzero(lineType != 'Calibration')[0]
+        dfCalib = pd.read_csv(asc_file_path, skiprows=iCal, names=np.arange(9))
+
+        # Import Message
+        print('Parsing messages...')
+        i_msg = np.nonzero(lineType == 'MSG')[0]
+        t_msg = []
+        txt_msg = []
+        for i in range(len(i_msg)):
+            # separate MSG prefix and timestamp from rest of message
+            info = fileTxt0[i_msg[i]].split()
+            # extract info
+            t_msg.append(int(info[1]))
+            txt_msg.append(' '.join(info[2:]))
+        dfMsg = pd.DataFrame({'time': t_msg, 'text': txt_msg})
+
+        # Import Fixations
+        print('Parsing fixations...')
+        i_not_efix = np.nonzero(lineType != 'EFIX')[0]
+        df_fix = pd.read_csv(asc_file_path, skiprows=i_not_efix, header=None, sep='\s+', usecols=range(1, 8), low_memory=False)
+        df_fix.columns = ['eye', 'tStart', 'tEnd', 'duration', 'xAvg', 'yAvg', 'pupilAvg']
+
+        # Saccades
+        print('Parsing saccades...')
+        i_not_esacc = np.nonzero(lineType != 'ESACC')[0]
+        df_sacc = pd.read_csv(asc_file_path, skiprows=i_not_esacc, header=None, sep='\s+', usecols=range(1, 11), low_memory=False)
+        df_sacc.columns = ['eye', 'tStart', 'tEnd', 'duration', 'xStart', 'yStart', 'xEnd', 'yEnd', 'ampDeg', 'vPeak']
+
+        # Blinks
+        print('Parsing blinks...')
+        df_blink = pd.DataFrame()
+        i_not_eblink = np.nonzero(lineType != 'EBLINK')[0]
+        if len(i_not_eblink) < nLines:
+            df_blink = pd.read_csv(asc_file_path, skiprows=i_not_eblink, header=None, sep='\s+', usecols=range(1, 5), low_memory=False)
+            df_blink.columns = ['eye', 'tStart', 'tEnd', 'duration']
+
+        # determine sample columns based on eyes recorded in file
+        eyes_in_file = np.unique(df_fix.eye)
+        if eyes_in_file.size == 2:
+            cols = ['tSample', 'LX', 'LY', 'LPupil', 'RX', 'RY', 'RPupil']
+        else:
+            eye = eyes_in_file[0]
+            print('monocular data detected (%c eye).' % eye)
+            cols = ['tSample', '%cX' % eye, '%cY' % eye, '%cPupil' % eye]
+
+        # Import samples
+        i_not_sample = np.nonzero(lineType != 'SAMPLE')[0]
+        dfSamples = pd.read_csv(asc_file_path, skiprows=i_not_sample, header=None, sep='\s+', usecols=range(0, len(cols)), low_memory=False)
+        dfSamples.columns = cols
+        # Convert values to numbers
+        for eye in ['L', 'R']:
+            if eye in eyes_in_file:
+                dfSamples['%cX' % eye] = pd.to_numeric(dfSamples['%cX' % eye], errors='coerce')
+                dfSamples['%cY' % eye] = pd.to_numeric(dfSamples['%cY' % eye], errors='coerce')
+                dfSamples['%cPupil' % eye] = pd.to_numeric(dfSamples['%cPupil' % eye], errors='coerce')
+            else:
+                dfSamples['%cX' % eye] = np.nan
+                dfSamples['%cY' % eye] = np.nan
+                dfSamples['%cPupil' % eye] = np.nan
+
+        dict_events = {'fix': df_fix, 'sacc': df_sacc, 'blink': df_blink}
+
+        # Return dictionary
         et = {}
-
-        # ASC FILE
-        print('Reading asc')
-        et['asc'] = pd.read_table(asc_file_path, names=np.arange(9), low_memory=False)
-
-        # INFO
-        et['start_time'] = et['asc'][1][np.where(et['asc'][0] == 'START')[0][0]]
-        et['samples_start'] = np.where(et['asc'][0] == et['start_time'].split()[0])[0][0]
-        et['head'] = et['asc'].iloc[:et['samples_start']]
-        et['eye'] = et['head'].loc[et['head'][0] == 'EVENTS'][2].values[0]
-        print('Loading headers: {}'.format(et['samples_start']))
-
-        # auxiliar numeric df
-        print('Converting asc to numeric')
-        num_et = et['asc'].apply(pd.to_numeric, errors='coerce')
-
-        # SAMPLES
-        # et['samples'] = num_et.loc[~pd.isna(num_et[np.arange(4)]).any(1)][np.arange(4)]
-        et['samples'] = num_et.loc[~pd.isna(num_et[0])][np.arange(4)]
-        print('Loading samples: {}'.format(len(et['samples'])))
-
-        # TIME
-        et['time'] = num_et[0].loc[~pd.isna(num_et[0])]
-        # et['time'] = num_et[0]
-        print('Loading time: {}'.format(len(et['time'])))
-
-        # FIXATIONS
-        et['fix'] = et['asc'].loc[et['asc'][0].str.contains('EFIX').values == True][np.arange(5)]
-        et['fix'][0] = et['fix'][0].str.split().str[-1]
-        et['fix'] = et['fix'].apply(pd.to_numeric, errors='coerce')
-        print('Loading fixations: {}'.format(len(et['fix'])))
-
-        # SACADES
-        et['sac'] = et['asc'].loc[et['asc'][0].str.contains('ESAC').values == True][np.arange(9)]
-        et['sac'][0] = et['sac'][0].str.split().str[-1]
-        et['sac'] = et['sac'].apply(pd.to_numeric, errors='coerce')
-        print('Loading saccades: {}'.format(len(et['sac'])))
-
-        # BLINKS
-        et['blinks'] = et['asc'].loc[et['asc'][0].str.contains('EBLINK').values == True][np.arange(3)]
-        et['blinks'][0] = et['blinks'][0].str.split().str[-1]
-        et['blinks'] = et['blinks'].apply(pd.to_numeric, errors='coerce')
-        print('Loading blinks: {}'.format(len(et['blinks'])))
-
-        # ETSYNC
-        et['sync'] = et['asc'].loc[et['asc'][1].str.contains('ETSYNC').values == True][np.arange(3)]
-        et['sync'][0] = et['sync'][1].str.split().str[1]
-        et['sync'][2] = pd.to_numeric(et['sync'][1].str.split().str[2])
-        et['sync'][1] = pd.to_numeric(et['sync'][1].str.split().str[0])
-        print('Loading sync messages: {}'.format(len(et['sync'])))
-
-        # MESSAGES
-        et['msg'] = et['asc'].loc[et['asc'][0].str.contains('MSG').values == True][np.arange(2)]
-        print('Loading all messages: {}'.format(len(et['msg'])))
-
-        # CALIBRATION
-        et['calibration'] = et['asc'].loc[et['asc'][0].str.contains('CALIBRATION').values == True][0]
-        print('Loading calibration messages: {}'.format(len(et['calibration'])))
+        et['samples'] =dfSamples
+        et['cal'] = dfCalib
+        et['header'] = dfHeader
+        et['msg'] = dfMsg
+        et['events'] = dict_events
 
         return et
 

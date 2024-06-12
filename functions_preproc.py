@@ -8,6 +8,39 @@ import scipy.signal as sgn
 import functions_general
 import plot_preproc
 import paths
+import subprocess
+import shutil
+
+
+def convert_edf_to_ascii(edf_file_path, output_dir):
+    """
+    Convert an EDF file to ASCII format using edf2asc.
+
+    Args:
+        edf_file_path (str): Path to the input EDF file.
+        output_dir (str): Directory to save the ASCII file. If None, the ASCII file will be saved in the same directory as the input EDF file.
+
+    Returns:
+        str: Path to the generated ASCII file.
+    """
+    # Check if edf2asc is installed
+    if not shutil.which("edf2asc"):
+        raise FileNotFoundError("edf2asc not found. Please make sure EyeLink software is installed and accessible in the system PATH.")
+
+    # Set output directory
+    if output_dir is None:
+        raise ValueError("Output directory must be specified.")
+
+    # Generate output file path
+    edf_file_name = os.path.basename(edf_file_path)
+    ascii_file_name = os.path.splitext(edf_file_name)[0] + ".asc"
+    ascii_file_path = os.path.join(output_dir, ascii_file_name)
+
+    # Run edf2asc command with the -f flag, only run it if the file does not already exist
+    if not os.path.exists(ascii_file_path):
+        subprocess.run(["edf2asc", "-f", edf_file_path, ascii_file_path])
+
+    return ascii_file_path
 
 
 def reescale_et_channels(meg_gazex_data_raw, meg_gazey_data_raw, minvoltage=-5, maxvoltage=5, minrange=-0.2, maxrange=1.2,
