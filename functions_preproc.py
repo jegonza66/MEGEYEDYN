@@ -448,6 +448,9 @@ def define_trials_trig(raw, exp_info):
     raw.annotations.onset = raw_annot[0].astype(float)
     raw.annotations.description = raw_annot[1]
 
+    # Set durations and ch_names length to match the annotations length
+    raw.annotations.duration = np.zeros(len(raw.annotations.description))
+
     return raw
 
 
