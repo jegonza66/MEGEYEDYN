@@ -28,8 +28,6 @@ def define_events(subject, meg_data, epoch_id, trial_num=None, evt_dur=None, epo
 
     print('Defining events')
 
-    metadata_sup = None
-
     if evt_from_df:
 
         if df is not None:
@@ -107,12 +105,7 @@ def define_events(subject, meg_data, epoch_id, trial_num=None, evt_dur=None, epo
         # Get events and ids matchig selection
         metadata, events, events_id = mne.epochs.make_metadata(events=all_events, event_id=all_event_id, row_events=epoch_keys, tmin=0, tmax=0, sfreq=meg_data.info['sfreq'])
 
-        if 'fix' in epoch_id:
-            metadata_sup = subject.fixations
-        elif 'sac' in epoch_id:
-            metadata_sup = subject.saccades
-
-    return metadata, events, events_id, metadata_sup
+    return metadata, events, events_id
 
 def epoch_data(subject, meg_data, epoch_id, tmin, tmax, trial_num=None, evt_dur=None, baseline=(None, 0), reject=None, evt_from_df=True, df=None,
                save_data=False, epochs_save_path=None, epochs_data_fname=None):
@@ -141,7 +134,7 @@ def epoch_data(subject, meg_data, epoch_id, tmin, tmax, trial_num=None, evt_dur=
         raise ValueError('Please provide path and filename to save data. If not, set save_data to false.')
 
     # Define events
-    metadata, events, events_id, metadata_sup = define_events(subject=subject, meg_data=meg_data, epoch_id=epoch_id, evt_dur=evt_dur, trial_num=trial_num,
+    metadata, events, events_id = define_events(subject=subject, meg_data=meg_data, epoch_id=epoch_id, evt_dur=evt_dur, trial_num=trial_num,
                                                 evt_from_df=evt_from_df, df=df)
 
     # Reject based on channel amplitude
@@ -158,10 +151,6 @@ def epoch_data(subject, meg_data, epoch_id, tmin, tmax, trial_num=None, evt_dur=
                         event_repeated='drop', metadata=metadata, preload=True, baseline=baseline)
     # Drop bad epochs
     epochs.drop_bad()
-
-    if metadata_sup is not None:
-        metadata_sup = metadata_sup.loc[(metadata_sup['id'].isin(epochs.metadata['event_name']))].reset_index(drop=True)
-        epochs.metadata = metadata_sup
 
     if save_data:
         # Save epoched data
