@@ -14,41 +14,44 @@ from mne.stats import spatio_temporal_cluster_1samp_test, summarize_clusters_stc
 
 
 
-def define_events(subject, meg_data, epoch_id, trials=None, evt_dur=None, epoch_keys=None, evt_from_df=False):
+def define_events(subject, meg_data, epoch_id, trial_num=None, evt_dur=None, epoch_keys=None, evt_from_df=True, df=None):
     '''
 
     :param subject:
     :param meg_data:
     :param epoch_id:
-    :param trials:
     :param evt_dur:
     :param epoch_keys: List of str indicating epoch_ids to epoch data on. Default: None.
     If not provided, will epoch data based on other parameters. If provided will override all other parameters.
     :return:
     '''
+
     print('Defining events')
 
     metadata_sup = None
 
     if evt_from_df:
-        if 'fix' in epoch_id:
+
+        if df is not None:
+            metadata = df
+        elif 'fix' in epoch_id:
             metadata = subject.fixations
+            #     if tgt == 1:
+            #         metadata = metadata.loc[(metadata['fix_target'] == tgt)]
+            #     elif tgt == 0:
+            #         metadata = metadata.loc[(metadata['fix_target'] == tgt)]
         elif 'sac' in epoch_id:
             metadata = subject.saccades
+            sac_dir = epoch_id.split('_sac')[0]
+            if sac_dir != '' and sac_dir != epoch_id:
+                metadata = metadata.loc[(metadata['dir'] == sac_dir)]
         elif 'pur' in epoch_id:
             metadata = subject.pursuit
 
-        # Get events from fix/sac Dataframe
+        # Get events with duration
         if evt_dur:
             metadata = metadata.loc[(metadata['duration'] >= evt_dur)]
-        # if 'fix' in epoch_id:
-        #     if tgt == 1:
-        #         metadata = metadata.loc[(metadata['fix_target'] == tgt)]
-        #     elif tgt == 0:
-        #         metadata = metadata.loc[(metadata['fix_target'] == tgt)]
-        if 'sac' in epoch_id:
-            if dir:
-                metadata = metadata.loc[(metadata['dir'] == dir)]
+
 
         metadata.reset_index(drop=True, inplace=True)
 
@@ -78,12 +81,12 @@ def define_events(subject, meg_data, epoch_id, trials=None, evt_dur=None, epoch_
                     epoch_keys = [key for key in epoch_keys if 'sac' not in key]
                 if 'fix' not in epoch_sub_id:
                     epoch_keys = [key for key in epoch_keys if 'fix' not in key]
-                if trials != None and any('_t' in epoch_key for epoch_key in epoch_keys):
+                if trial_num != None and any('_t' in epoch_key for epoch_key in epoch_keys):
                     try:
                         if 'vsend' in epoch_sub_id or 'cross1' in epoch_sub_id:
-                            epoch_keys = [epoch_key for epoch_key in epoch_keys if epoch_key.split('_t')[-1] in trials]
+                            epoch_keys = [epoch_key for epoch_key in epoch_keys if epoch_key.split('_t')[-1] in trial_num]
                         else:
-                            epoch_keys = [epoch_key for epoch_key in epoch_keys if (epoch_key.split('_t')[-1].split('_')[0] in trials and 'end' not in epoch_key)]
+                            epoch_keys = [epoch_key for epoch_key in epoch_keys if (epoch_key.split('_t')[-1].split('_')[0] in trial_num and 'end' not in epoch_key)]
                     except:
                         print('Trial selection skipped. Epoch_id does not contain trial number.')
 
@@ -111,9 +114,8 @@ def define_events(subject, meg_data, epoch_id, trials=None, evt_dur=None, epoch_
 
     return metadata, events, events_id, metadata_sup
 
-
-def epoch_data(subject, meg_data, epoch_id, tmin, tmax, corr_ans=None, cond_trials=None, evt_dur=None, baseline=(None, 0), reject=None,
-               save_data=False, epochs_save_path=None, epochs_data_fname=None, evt_from_df=False):
+def epoch_data(subject, meg_data, epoch_id, tmin, tmax, trial_num=None, evt_dur=None, baseline=(None, 0), reject=None, evt_from_df=True, df=None,
+               save_data=False, epochs_save_path=None, epochs_data_fname=None):
     '''
     :param subject:
     :param mss:
@@ -138,12 +140,10 @@ def epoch_data(subject, meg_data, epoch_id, tmin, tmax, corr_ans=None, cond_tria
     if save_data and (not epochs_save_path or not epochs_data_fname):
         raise ValueError('Please provide path and filename to save data. If not, set save_data to false.')
 
-    # # Trials
-    # if not cond_trials:
-    #     cond_trials, bh_data_sub = functions_general.get_condition_trials(subject=subject, corr_ans=corr_ans)
-
     # Define events
-    metadata, events, events_id, metadata_sup = define_events(subject=subject, epoch_id=epoch_id, evt_dur=evt_dur, trials=cond_trials, meg_data=meg_data, evt_from_df=evt_from_df)
+    metadata, events, events_id, metadata_sup = define_events(subject=subject, meg_data=meg_data, epoch_id=epoch_id, evt_dur=evt_dur, trial_num=trial_num,
+                                                evt_from_df=evt_from_df, df=df)
+
     # Reject based on channel amplitude
     if reject == False:
         # Setting reject parameter to False uses No rejection (None in mne will not reject)
@@ -275,8 +275,7 @@ def get_plot_tf(tfr, plot_xlim=(None, None), plot_max=True, plot_min=True):
     return timefreqs
 
 
-def ocular_components_ploch(subject, meg_downsampled, ica, sac_id='sac_emap', fix_id='fix_emap' , reject={'mag': 5e-12}, threshold=1.1,
-                            plot_distributions=True):
+def ocular_components_ploch(subject, meg_downsampled, ica, sac_id='sac_emap', fix_id='fix_emap' , reject={'mag': 5e-12}, threshold=1.1, plot_distributions=True):
     '''
     Ploch's algorithm for saccadic artifacts detection by variance comparison
 
@@ -289,18 +288,16 @@ def ocular_components_ploch(subject, meg_downsampled, ica, sac_id='sac_emap', fi
 
     # Define events
     print('Saccades')
-    sac_metadata, sac_events, sac_events_id, sac_metadata_sup = \
-        define_events(subject=subject, epoch_id=sac_id, meg_data=meg_downsampled)
+    sac_metadata, sac_events, sac_events_id = define_events(subject=subject, epoch_id=sac_id, meg_data=meg_downsampled)
 
     print('Fixations')
-    fix_metadata, fix_events, fix_events_id, fix_metadata_sup = \
-        define_events(subject=subject, epoch_id=fix_id, meg_data=meg_downsampled)
+    fix_metadata, fix_events, fix_events_id = define_events(subject=subject, epoch_id=fix_id, meg_data=meg_downsampled)
 
     # Get time windows from epoch_id name
     sac_tmin = -0.005  # Add previous 5 ms
-    sac_tmax = sac_metadata_sup['duration'].mean()
+    sac_tmax = sac_metadata['duration'].mean()
     fix_tmin = 0
-    fix_tmax = fix_metadata_sup['duration'].min()
+    fix_tmax = fix_metadata['duration'].mean()
 
     # Epoch data
     sac_epochs = mne.Epochs(raw=meg_downsampled, events=sac_events, event_id=sac_events_id, tmin=sac_tmin,
@@ -310,23 +307,13 @@ def ocular_components_ploch(subject, meg_downsampled, ica, sac_id='sac_emap', fi
                             tmax=fix_tmax, reject=reject,
                             event_repeated='drop', metadata=fix_metadata, preload=True, baseline=(0, 0))
 
-    # Append saccades df as epochs metadata
-    if sac_metadata_sup is not None:
-        sac_metadata_sup = sac_metadata_sup.loc[
-            (sac_metadata_sup['id'].isin(sac_epochs.metadata['event_name']))].reset_index(drop=True)
-        sac_epochs.metadata = sac_metadata_sup
-    if fix_metadata_sup is not None:
-        fix_metadata_sup = fix_metadata_sup.loc[
-            (fix_metadata_sup['id'].isin(fix_epochs.metadata['event_name']))].reset_index(drop=True)
-        fix_epochs.metadata = fix_metadata_sup
-
     # Get the ICA sources for the epoched data
     sac_ica_sources = ica.get_sources(sac_epochs)
     fix_ica_sources = ica.get_sources(fix_epochs)
 
     # Get the ICA data epoched on the emap saccades
-    sac_ica_data = sac_ica_sources.get_data()
-    fix_ica_data = fix_ica_sources.get_data()
+    sac_ica_data = sac_ica_sources.get_data(copy=True)
+    fix_ica_data = fix_ica_sources.get_data(copy=True)
 
     # Compute variance along 3rd axis (time)
     sac_variance = np.var(sac_ica_data, axis=2)
@@ -503,8 +490,7 @@ def make_mtrf_input(input_arrays, var_name, subject, meg_data, evt_dur, cond_tri
                     subj_path, fname, save_var=True):
 
     # Define events
-    metadata, events, _, _ = define_events(subject=subject, epoch_id=var_name, evt_dur=evt_dur,
-                                           trials=cond_trials, meg_data=meg_data,  epoch_keys=epoch_keys)
+    metadata, events, _, = define_events(subject=subject, epoch_id=var_name, evt_dur=evt_dur, meg_data=meg_data,  epoch_keys=epoch_keys)
     # Make input arrays as 0
     input_array = np.zeros(len(meg_data.times))
     # Get events samples index
