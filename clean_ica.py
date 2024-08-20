@@ -8,6 +8,7 @@ import paths
 import setup
 import load
 import functions_analysis
+import plot_general
 
 plt.figure()
 plt.close('all')
@@ -107,7 +108,7 @@ for subject_code in exp_info.subjects_ids:
         sources = ica.get_sources(inst=meg_downsampled, start=int(len(meg_downsampled.times)/2), stop=int(len(meg_downsampled.times)/2 + meg_downsampled.info['sfreq'] *time_series_plot_time))
 
         for ic in range(ica_components):
-            functions_analysis.plot_ica_properties(ica=ica, meg_downsampled=meg_downsampled, sources=sources, ic=ic, hfreq=hfreq, epochs=epochs, fig_path=fig_path)
+            plot_general.plot_ica_properties(ica=ica, meg_downsampled=meg_downsampled, sources=sources, ic=ic, hfreq=hfreq, epochs=epochs, fig_path=fig_path)
 
     # Visual inspection of sources for further artefactual components identification
     ica.plot_sources(meg_downsampled, title='ICA', block=True)
@@ -148,7 +149,7 @@ for subject_code in exp_info.subjects_ids:
     plt.ioff()
 
     for ic in ex_components:
-        functions_analysis.plot_ica_properties(ica=ica, meg_downsampled=meg_downsampled, sources=sources, ic=ic, hfreq=hfreq, epochs=epochs, fig_path=fig_path_ex)
+        plot_general.plot_ica_properties(ica=ica, meg_downsampled=meg_downsampled, sources=sources, ic=ic, hfreq=hfreq, epochs=epochs, fig_path=fig_path_ex)
 
     # Exclude bad components from data
     ica.exclude = ex_components
