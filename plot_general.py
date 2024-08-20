@@ -135,61 +135,51 @@ def evoked_topo(evoked_meg, picks, topo_times, title=None, fig=None, axes_ev=Non
             save.fig(fig=fig, path=fig_path, fname=fname)
 
 
-def fig_vs_ms():
+def plot_ica_properties(ica, meg_downsampled, sources, ic, hfreq, epochs, fig_path):
 
-    fig = plt.figure(figsize=(10, 9))
+    # Create figure
+    fig = plt.figure(figsize=(8.0, 9.0), facecolor=[0.95] * 3)
 
-    # 1st row Topoplots
-    # VS
-    ax1 = fig.add_axes([0.12, 0.88, 0.08, 0.09])
-    ax2 = fig.add_axes([0.3, 0.88, 0.08, 0.09])
-    ax3 = fig.add_axes([0.42, 0.88, 0.013, 0.09])
+    # Set axes to plot ICA properties
+    axes_params = (
+        ("topomap", [0.08, 0.6, 0.3, 0.35]),
+        ("image", [0.5, 0.65, 0.45, 0.30]),
+        ("erp", [0.5, 0.6, 0.45, 0.05]),
+        ("spectrum", [0.08, 0.29, 0.32, 0.25]),
+        ("variance", [0.5, 0.29, 0.45, 0.25]),
+        ("time_series", [0.08, 0.06, 0.87, 0.15])
+    )
 
-    #MS
-    ax4 = fig.add_axes([0.7, 0.88, 0.08, 0.09])
-    ax5 = fig.add_axes([0.82, 0.88, 0.013, 0.09])
+    # Get axes lists
+    axes = [fig.add_axes(loc, label=name) for name, loc in axes_params]
+    mne_axes = axes[:-1]
+    ax_time_series = axes[-1]
 
-    # 2nd row Evokeds
-    ax6 = fig.add_axes([0.07, 0.71, 0.4, 0.15])
-    ax7 = fig.add_axes([0.57, 0.71, 0.4, 0.15])
+    # Plot properties
+    ica.plot_properties(meg_downsampled, picks=ic, psd_args=dict(fmax=hfreq), show=False, axes=mne_axes)
 
-    # 3 row Topoplots
-    # VS
-    ax8 = fig.add_axes([0.2, 0.54, 0.08, 0.09])
-    ax9 = fig.add_axes([0.32, 0.54, 0.013, 0.09])
-    # MS
-    ax10 = fig.add_axes([0.7, 0.54, 0.08, 0.09])
-    ax11 = fig.add_axes([0.82, 0.54, 0.013, 0.09])
+    # Plot time series
+    ax_time_series.plot(sources[ic][1], sources[ic][0].ravel(), color='black', linewidth=0.5)
+    ax_time_series.set_title('Time series')
+    ax_time_series.set_xlabel('Time (s)')
 
-    # 4 row Evokeds
-    ax12 = fig.add_axes([0.07, 0.38, 0.4, 0.15])
-    ax13 = fig.add_axes([0.57, 0.38, 0.4, 0.15])
+    # Plot epochs on axes
+    # Make fake figure to pass for plotting spureous plots
+    fake_fig, fake_axs = plt.subplots(nrows=3)
 
-    # 5 row Topoplot Difference
-    ax14 = fig.add_axes([0.4, 0.22, 0.08, 0.09])
-    ax15 = fig.add_axes([0.52, 0.22, 0.013, 0.09])
+    # Get figure epochs and ERP axes
+    image_ax, erp_ax = fig.get_axes()[1], fig.get_axes()[2]
+    image_ax.clear()
+    erp_ax.clear()
 
-    # 6th row Evoked Diference
-    ax16 = fig.add_axes([0.1, 0.05, 0.8, 0.15])
+    # Define axes list to pass and plot properties
+    ax_list = [fake_axs[0], image_ax, erp_ax, fake_axs[1], fake_axs[2]]
 
-    # groups
-    ax_evoked_vs_1 = ax6
-    ax_topo_vs_1 = [ax1, ax2, ax3]
+    # Plot epoch properties
+    ica.plot_properties(epochs, picks=[ic], axes=ax_list, psd_args=dict(fmax=hfreq), show=False)
+    save.fig(fig=fig, path=fig_path, fname=f'IC_{ic}_Properties')
+    plt.close('all')
 
-    ax_evoked_ms_1 = ax7
-    ax_topo_ms_1 = [ax4, ax5]
-
-    ax_evoked_vs_2 = ax12
-    ax_topo_vs_2 = [ax8, ax9]
-
-    ax_evoked_ms_2 = ax13
-    ax_topo_ms_2 = [ax10, ax11]
-
-    ax_evoked_diff = ax16
-    ax_topo_diff = [ax14, ax15]
-
-    return fig, ax_evoked_vs_1, ax_topo_vs_1, ax_evoked_ms_1, ax_topo_ms_1, ax_evoked_vs_2, ax_topo_vs_2, \
-           ax_evoked_ms_2, ax_topo_ms_2, ax_evoked_diff, ax_topo_diff
 
 
 def fig_psd():
