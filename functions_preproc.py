@@ -398,7 +398,7 @@ def fixations_saccades_detection(raw, et_channels_meg, subject, sac_max_vel=1500
     return fixations, saccades, pursuit, subject
 
 
-def define_trials_trig(raw, exp_info):
+def define_trials_trig(raw, exp_info, subject_id):
     """
     Raw MEG data has only button presses as annotations. We want to include also trial/eyemap start/end times as events
 
@@ -420,7 +420,10 @@ def define_trials_trig(raw, exp_info):
     print('Adding trial onsets from tiggers as annotations...')
 
     # Extract trigger channel
-    trig_ch = raw.copy().pick(exp_info.trig_ch)
+    if subject_id in exp_info.alt_trigger:
+        trig_ch = raw.copy().pick(exp_info.alt_trig_ch)
+    else:
+        trig_ch = raw.copy().pick(exp_info.trig_ch)
 
     # Get button and triggers values
     trig_values = trig_ch.get_data().ravel()
