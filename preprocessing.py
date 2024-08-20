@@ -34,12 +34,6 @@ for subject_code in exp_info.subjects_ids:
     meg_gazex_data_scaled, meg_gazey_data_scaled = functions_preproc.reescale_et_channels(meg_gazex_data_raw=meg_gazex_data_raw,
                                                                                           meg_gazey_data_raw=meg_gazey_data_raw)
 
-    # Extra to check on pupil parameter
-    plt.figure()
-    import matplotlib.pyplot as plt
-    plt.plot(et_channels_meg[2])
-    plt.hlines(y=subject.params.preproc.pupil_thresh, xmin=0, xmax=len(et_channels_meg[2]), linestyles='--', colors='k')
-
     # ---------------- Blinks removal ----------------#
     # Define intervals around blinks to also fill with nan. Due to conversion noise from square signal
     et_channels_meg = functions_preproc.blinks_to_nan(exp_info=exp_info,
@@ -56,7 +50,8 @@ for subject_code in exp_info.subjects_ids:
 
     # ---------------- Annotate trils in MEG from trigger channel ----------------#
     raw = functions_preproc.define_trials_trig(raw=raw,
-                                               exp_info=exp_info)
+                                               exp_info=exp_info,
+                                               subject_id=subject.subject_id)
 
 
     # ---------------- Add scaled ET data to MEG data as new channels ----------------#
@@ -64,9 +59,6 @@ for subject_code in exp_info.subjects_ids:
                                             et_channels_meg=et_channels_meg,
                                             et_channel_names=subject.et_channel_names)
 
-    # Extra figure to check line noise frequencies and edit in exp_info
-    plt.figure()
-    raw.plot_psd(picks='mag', show=True)
 
     # ---------------- Filter line noise ----------------#
     filtered_data = functions_preproc.filter_line_noise(subject=subject,
@@ -94,11 +86,13 @@ for subject_code in exp_info.subjects_ids:
         fig_name = 'Annot_PSD'
         save.fig(fig=fig, path=fig_path, fname=fig_name)
 
-        # ---------------- Interpolate bads if any ----------------#
-        if len(filtered_data.info['bads']) > 0:
-            # Set digitalization info in meg_data
-            filtered_data = functions_preproc.set_digitlization(subject=subject,
-                                                                meg_data=filtered_data)
+    # ---------------- Interpolate bads if any ----------------#
+    if len(filtered_data.info['bads']) > 0:
+        # Set digitalization info in meg_data
+        filtered_data = functions_preproc.set_digitlization(subject=subject, meg_data=filtered_data)
+
+        # Interpolate channels
+        filtered_data.interpolate_bads()
 
     # ---------------- Save fix time distribution, pupils size vs mss, scanpath and trial gaze figures ----------------#
     if plot:
