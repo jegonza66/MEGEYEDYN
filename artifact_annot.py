@@ -32,9 +32,9 @@ for subject_code in exp_info.subjects_ids:
 
     # Include bad annotations, muscle annotations and bad channels in data
     annotations_bad = meg_data_visual.annotations
-    annotations_bad.delete(np.where(annotations_bad.description != 'bad')[0])
+    annotations_bad.delete(np.where(annotations_bad.description != 'BAD_')[0])
     meg_data.set_annotations(meg_data.annotations + annotations_muscle + annotations_bad)
-    meg_data.info['bads'] = meg_data_visual.info['bads']
+    meg_data.info['bads'] += meg_data_visual.info['bads']
 
     # ---------------- Interpolate bads if any ----------------#
     if len(meg_data.info['bads']) > 0:
