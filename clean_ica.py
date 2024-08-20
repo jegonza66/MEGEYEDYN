@@ -17,7 +17,7 @@ ica_path = paths.ica_path
 plot_path = paths.plots_path
 exp_info = setup.exp_info()
 
-plot_components = False
+plot_components = True
 for subject_code in exp_info.subjects_ids:
 
     # Load data
@@ -74,22 +74,14 @@ for subject_code in exp_info.subjects_ids:
     epoch_id = 'l_sac'
     # Get time windows from epoch_id name
     tmin, tmax = -0.05, 0.1
-    # Specific run path for loading evoked data
-    run_path = f'/Band_None/{epoch_id}_mssNone_Corr_None_tgt_None_{tmin}_{tmax}_bline({tmin}, 0)/'
-    # load evoked data path
-    epochs_save_path = paths.save_path + f'Epochs_RAW/' + run_path
-    evoked_save_path = paths.save_path + f'Evoked_RAW/' + run_path
-    # Data filenames
-    epochs_data_fname = f'Subject_{subject.subject_id}_epo.fif'
-    evoked_data_fname = f'Subject_{subject.subject_id}_ave.fif'
-    # Load evoked data
-    sac_epochs = mne.read_epochs(epochs_save_path + epochs_data_fname)
-    sac_evoked = mne.read_evokeds(evoked_save_path + evoked_data_fname, verbose=False)[0]
+
+    # Epoch data and make evoked
+    epochs, events = functions_analysis.epoch_data(subject=subject, meg_data=meg_data, epoch_id=epoch_id, tmin=tmin, tmax=tmax)
+    evoked = epochs.average()
 
     # Ploch's algorithm for saccadic artifacts detection by variance comparison
-    ocular_components, sac_epochs_ds, fix_epochs_ds = \
-        functions_analysis.ocular_components_ploch(subject=subject, meg_downsampled=meg_downsampled,
-                                                   ica=ica, plot_distributions=False)
+    ocular_components, sac_epochs_ds, fix_epochs_ds = functions_analysis.ocular_components_ploch(subject=subject, meg_downsampled=meg_downsampled,
+                                                                                                 ica=ica, plot_distributions=False)
 
     # Components figures paths
     fig_path = plot_path + f'ICA/{subject.subject_id}/'
@@ -110,28 +102,15 @@ for subject_code in exp_info.subjects_ids:
         plt.close('all')
 
         # Plot properties on all data and save
-        all_comps = [i for i in range(ica_components)]
-        ica.plot_properties(meg_downsampled, picks=all_comps, psd_args=dict(fmax=hfreq), show=False)
+        # Get sources data to plot time series
+        time_series_plot_time = 10
+        sources = ica.get_sources(inst=meg_downsampled, start=int(len(meg_downsampled.times)/2), stop=int(len(meg_downsampled.times)/2 + meg_downsampled.info['sfreq'] *time_series_plot_time))
 
-        # Get figures and save
-        figs = [plt.figure(n) for n in plt.get_fignums()]
-        # Make fake figure to pass for plotting spureous plots
-        fake_fig, fake_axs = plt.subplots(nrows=3)
-        for ic, fig in enumerate(figs):
-            # Get figure epochs and ERP axes
-            image_ax, erp_ax = fig.get_axes()[1], fig.get_axes()[2]
-            image_ax.clear()
-            erp_ax.clear()
-            # Define axes list to pass and plot properties
-            ax_list = [fake_axs[0], image_ax, erp_ax, fake_axs[1], fake_axs[2]]
-            # Plot properties
-            ica.plot_properties(sac_epochs, picks=[ic], axes=ax_list, psd_args=dict(fmax=hfreq), show=False)
-            save.fig(fig=fig, path=fig_path, fname=f'IC_{ic}_Properties')
-            plt.close(fig)
-        plt.close('all')
+        for ic in range(ica_components):
+            functions_analysis.plot_ica_properties(ica=ica, meg_downsampled=meg_downsampled, sources=sources, ic=ic, hfreq=hfreq, epochs=epochs, fig_path=fig_path)
 
     # Visual inspection of sources for further artefactual components identification
-    ica.plot_sources(meg_downsampled, title='ICA')
+    ica.plot_sources(meg_downsampled, title='ICA', block=True)
 
     # Select bad components by variable
     ex_components = []
@@ -161,31 +140,15 @@ for subject_code in exp_info.subjects_ids:
             ex_components.append(ocular_component)
 
     # Plot evoked before and after
-    before_after = ica.plot_overlay(inst=sac_evoked, exclude=ex_components, show=True)
+    before_after = ica.plot_overlay(inst=evoked, exclude=ex_components, show=True)
     save.fig(fig=before_after, path=fig_path_ex, fname=f'Raw_ICA')
     plt.close('all')
 
     # Plot properties of excluded components
     plt.ioff()
-    ica.plot_properties(meg_downsampled, picks=ex_components, psd_args=dict(fmax=hfreq), show=False)
 
-    # Get figures
-    figs = [plt.figure(n) for n in plt.get_fignums()]
-    # Make fake figure to pass for plotting spureous plots
-    fake_fig, fake_axs = plt.subplots(nrows=3)
-
-    for ic, fig in zip(ex_components, figs):
-        # Get figure epochs and ERP axes
-        image_ax, erp_ax = fig.get_axes()[1], fig.get_axes()[2]
-        image_ax.clear()
-        erp_ax.clear()
-        # Define axes list to pass and plot properties
-        ax_list = [fake_axs[0], image_ax, erp_ax, fake_axs[1], fake_axs[2]]
-        # Plot properties
-        ica.plot_properties(sac_epochs, picks=[ic], axes=ax_list, psd_args=dict(fmax=hfreq), show=False)
-        save.fig(fig=fig, path=fig_path_ex, fname=f'IC_{ic}_Properties')
-        plt.close(fig)
-    plt.close('all')
+    for ic in ex_components:
+        functions_analysis.plot_ica_properties(ica=ica, meg_downsampled=meg_downsampled, sources=sources, ic=ic, hfreq=hfreq, epochs=epochs, fig_path=fig_path_ex)
 
     # Exclude bad components from data
     ica.exclude = ex_components
