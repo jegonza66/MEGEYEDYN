@@ -24,6 +24,7 @@ else:
         raise AssertionError(f'DATA/ folder not found in main path: {main_path}\n'
                              f'Please refer to https://github.com/jegonza66/MEGEYEDYN and copy the directory structure from Readme.md')
 
+data_path = main_path + 'DATA/'
 ctf_path = main_path + 'DATA/CTF_DATA/'
 et_path = main_path + 'DATA/ET_DATA/'
 mri_path = main_path + 'DATA/MRI_DATA/'
