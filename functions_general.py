@@ -313,7 +313,7 @@ def pick_chs(chs_id, info):
     '''
 
     if chs_id == 'mag':
-        picks = [ch_name for ch_name in info.ch_names if 'M' in ch_name and '-4123' in ch_name]
+        picks = [ch_name for ch_name in info.ch_names if 'M' in ch_name]
     elif chs_id == 'sac_chs':
         picks = ['MLF14', 'MLF13', 'MLF12', 'MLF11', 'MRF11', 'MRF12', 'MRF13', 'MRF14', 'MZF01']
     elif chs_id == 'LR':
@@ -327,28 +327,28 @@ def pick_chs(chs_id, info):
         picks = []
         for id in ids:
             if id == 'parietal':
-                picks += [ch_name for ch_name in all_chs if 'M' in ch_name and '-4123' in ch_name and 'P' in ch_name]
+                picks += [ch_name for ch_name in all_chs if 'M' in ch_name and 'P' in ch_name]
             elif id == 'parietal+':
-                picks += [ch_name for ch_name in all_chs if 'M' in ch_name and '-4123' in ch_name and 'P' in ch_name]
+                picks += [ch_name for ch_name in all_chs if 'M' in ch_name and 'P' in ch_name]
                 picks += ['MLT25', 'MLT26', 'MLT27', 'MLO24', 'MLO23', 'MLO22', 'MLO21', 'MLT15', 'MLT16',
                                  'MLO14', 'MLO13', 'MLO12', 'MLO11',
                                  'MZO01',
                                  'MRT25', 'MRT26', 'MRT27', 'MRO24', 'MRO23', 'MRO22', 'MRO21', 'MRT15', 'MRT16',
                                  'MRO14', 'MRO13', 'MRO12', 'MRO11']
             elif id == 'occipital':
-                picks += [ch_name for ch_name in all_chs if 'M' in ch_name and '-4123' in ch_name and 'O' in ch_name]
+                picks += [ch_name for ch_name in all_chs if 'M' in ch_name and 'O' in ch_name]
             elif id == 'frontal':
-                picks += [ch_name for ch_name in all_chs if 'M' in ch_name and '-4123' in ch_name and 'F' in ch_name]
+                picks += [ch_name for ch_name in all_chs if 'M' in ch_name and 'F' in ch_name]
             elif id == 'temporal':
-                picks += [ch_name for ch_name in all_chs if 'M' in ch_name and '-4123' in ch_name and 'T' in ch_name]
+                picks += [ch_name for ch_name in all_chs if 'M' in ch_name and 'T' in ch_name]
             elif id == 'central':
-                picks += [ch_name for ch_name in all_chs if 'M' in ch_name and '-4123' in ch_name and 'C' in ch_name]
+                picks += [ch_name for ch_name in all_chs if 'M' in ch_name and 'C' in ch_name]
 
             # Subset from picked chanels
             elif id == 'L':
-                picks = [ch_name for ch_name in picks if 'M' in ch_name and '-4123' in ch_name and 'L' in ch_name]
+                picks = [ch_name for ch_name in picks if 'M' in ch_name and 'L' in ch_name]
             elif id == 'R':
-                picks = [ch_name for ch_name in picks if 'M' in ch_name and '-4123' in ch_name and 'R' in ch_name]
+                picks = [ch_name for ch_name in picks if 'M' in ch_name and 'R' in ch_name]
 
     return picks
 
@@ -411,7 +411,7 @@ def get_freq_band(band_id):
     return l_freq, h_freq
 
 
-def get_time_lims(epoch_id, mss=None, plot_edge=0.1, map=None):
+def get_time_lims(epoch_id, plot_edge=0.1, map=None):
     '''
     :param epoch_id: str
         String with the name of the epochs to select.
@@ -436,17 +436,10 @@ def get_time_lims(epoch_id, mss=None, plot_edge=0.1, map=None):
         try:
             cross1_dur, cross2_dur, mss_duration, vs_dur = get_duration()
 
-            map = dict(cross1={'tmin': 0, 'tmax': cross1_dur, 'plot_xlim': (plot_edge, cross1_dur - plot_edge)},
-                       ms={'tmin': -cross1_dur, 'tmax': mss_duration[mss], 'plot_xlim': (-cross1_dur + plot_edge, mss_duration[mss] - plot_edge)},
-                       cross2={'tmin': -cross1_dur - mss_duration[mss], 'tmax': cross2_dur,
-                               'plot_xlim': (plot_edge, cross2_dur - plot_edge)},
-                       vs={'tmin': -cross1_dur - mss_duration[mss] - cross2_dur, 'tmax': vs_dur[mss][0],
-                           'plot_xlim': (-cross1_dur - mss_duration[mss] - cross2_dur + plot_edge, vs_dur[mss][0] - plot_edge)},
-                       vsend={'tmin': -2, 'tmax': cross1_dur + 1, 'plot_xlim': (-2 + plot_edge, cross1_dur + 1 - plot_edge)},
-                       sac={'tmin': -0.2, 'tmax': 0.3, 'plot_xlim': (-0.2 + plot_edge, 0.3 - plot_edge)},
+            map = dict(sac={'tmin': -0.2, 'tmax': 0.3, 'plot_xlim': (-0.2 + plot_edge, 0.3 - plot_edge)},
                        fix={'tmin': -0.3, 'tmax': 0.6, 'plot_xlim': (-0.3 + plot_edge, 0.6 - plot_edge)},
-                       blue={'tmin': -0.5, 'tmax': 5, 'plot_xlim': (-0.5 + plot_edge, 5 - plot_edge)},
-                       red={'tmin': -0.5, 'tmax': 5, 'plot_xlim': (-0.5 + plot_edge, 5 - plot_edge)})
+                       blue={'tmin': -1, 'tmax': 5, 'plot_xlim': (-1 + plot_edge, 5 - plot_edge)},
+                       red={'tmin': -1, 'tmax': 5, 'plot_xlim': (-1 + plot_edge, 5 - plot_edge)})
             if 'fix' in epoch_id:
                 tmin = map['fix']['tmin']
                 tmax = map['fix']['tmax']
@@ -479,7 +472,7 @@ def get_duration():
     return cross1_dur, cross2_dur, mss_duration, vs_dur
 
 
-def get_baseline_duration(epoch_id, mss, tmin, tmax, cross1_dur, mss_duration, cross2_dur, plot_edge=None, map=None):
+def get_baseline_duration(epoch_id, tmin, tmax, plot_edge=None, map=None):
     # Baseline duration
     if map and epoch_id in map.keys():
         baseline = (map[epoch_id]['baseline'][0], map[epoch_id]['baseline'][1])
@@ -490,14 +483,6 @@ def get_baseline_duration(epoch_id, mss, tmin, tmax, cross1_dur, mss_duration, c
             baseline = (tmin, 0)
         elif 'fix' in epoch_id or 'fix' in epoch_id:
             baseline = (tmin, -0.05)
-        elif 'ms' in epoch_id:
-            baseline = (-cross1_dur, 0)
-        elif 'cross2' in epoch_id and mss:
-            baseline = (-mss_duration[mss] - cross2_dur, -mss_duration[mss])
-        elif 'vsend' in epoch_id:
-            baseline = (tmax -cross1_dur, tmax)
-        elif 'vs' in epoch_id:
-            baseline = (-cross1_dur -cross2_dur - mss_duration[mss], -cross2_dur - mss_duration[mss])
         elif 'red' in epoch_id or 'blue' in epoch_id:
             baseline = (tmin, -0.1)
         else:
@@ -529,7 +514,7 @@ def get_baseline_duration(epoch_id, mss, tmin, tmax, cross1_dur, mss_duration, c
     return baseline, plot_baseline
 
 
-def get_plots_timefreqs(epoch_id, mss, cross2_dur, mss_duration, topo_bands, plot_xlim, timefreqs_joint=None, plot_min=True, plot_max=True):
+def get_plots_timefreqs(epoch_id, topo_bands, plot_xlim, timefreqs_joint=None, plot_min=True, plot_max=True):
     '''
     :param epoch_id:
     :param timefreqs_joint: list of tuples. Each tuple represents the time and frequency of the topoplot.
@@ -541,41 +526,7 @@ def get_plots_timefreqs(epoch_id, mss, cross2_dur, mss_duration, topo_bands, plo
     '''
 
     # Plot_joint topoplots time frequencies
-    if epoch_id == 'ms':
-        if not timefreqs_joint:
-            timefreqs_joint = [(0.55, 10)]
-
-            if mss:
-                vs_timefreq = {1: [(2.5, 10), (3.15, 7), (3.75, 10)],
-                           2: [(4, 10), (4.65, 7), (5.25, 10)],
-                           4: [(5.5, 10), (6.15, 7), (6.75, 10)]}
-
-                timefreqs_joint += vs_timefreq[mss]
-
-            # Check that time freqs are contained in plot times
-            timefreqs_joint = [timefreq for timefreq in timefreqs_joint if timefreq[0] > plot_xlim[0] and timefreq[0] < plot_xlim[1]]
-
-        # TFR vlines
-        vlines_times = [0, mss_duration[mss], mss_duration[mss] + 1]
-
-    elif epoch_id == 'vs':
-        vs_timefreqs = [(-0.7, 8), (0.15, 6), (0.75, 10)]
-        if not timefreqs_joint:
-            if mss:
-                ms_timefreq = {1: [(-2.45, 10)],
-                               2: [(-3.95, 10)],
-                               4: [(-5.45, 10)]}
-                timefreqs_joint = ms_timefreq[mss] + vs_timefreqs
-            else:
-                timefreqs_joint = vs_timefreqs
-
-            # Check that time freqs are contained in plot times
-            timefreqs_joint = [timefreq for timefreq in timefreqs_joint if timefreq[0] > plot_xlim[0] and timefreq[0] < plot_xlim[1]]
-
-        # TFR vlines
-        vlines_times = [- cross2_dur - mss_duration[mss], -cross2_dur, 0]
-
-    elif 'fix' in epoch_id:
+    if 'fix' in epoch_id:
         timefreqs_joint = [(0.095, 10)]
         vlines_times = None
     else:
