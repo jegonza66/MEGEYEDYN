@@ -10,11 +10,11 @@ import load
 import setup
 from mne.decoding import ReceptiveField
 from scipy import stats as stats
-from mne.stats import spatio_temporal_cluster_1samp_test, summarize_clusters_stc
+from mne.stats import spatio_temporal_cluster_1samp_test, summarize_clusters_stc, permutation_cluster_1samp_test
 
 
 
-def define_events(subject, meg_data, epoch_id, trial_num=None, evt_dur=None, epoch_keys=None, evt_from_df=True, df=None):
+def define_events(subject, meg_data, epoch_id, trial_num=None, evt_dur=None, epoch_keys=None, evt_from_df=False, df=None):
     '''
 
     :param subject:
@@ -28,8 +28,10 @@ def define_events(subject, meg_data, epoch_id, trial_num=None, evt_dur=None, epo
 
     print('Defining events')
 
-    if evt_from_df:
+    if 'fix' in epoch_id or 'sac' in epoch_id or 'pur' in epoch_id:
+        evt_from_df = True
 
+    if evt_from_df:
         if df is not None:
             metadata = df
         elif 'fix' in epoch_id:
@@ -107,7 +109,7 @@ def define_events(subject, meg_data, epoch_id, trial_num=None, evt_dur=None, epo
 
     return metadata, events, events_id
 
-def epoch_data(subject, meg_data, epoch_id, tmin, tmax, trial_num=None, evt_dur=None, baseline=(None, 0), reject=None, evt_from_df=True, df=None,
+def epoch_data(subject, meg_data, epoch_id, tmin, tmax, trial_num=None, evt_dur=None, baseline=(None, 0), reject=None, evt_from_df=False, df=None,
                save_data=False, epochs_save_path=None, epochs_data_fname=None):
     '''
     :param subject:
@@ -672,3 +674,49 @@ def estimate_sources_cov(subject, baseline, band_id, filter_sensors, filter_meth
         stc = stc_act
 
     return stc
+
+
+
+def run_time_frequency_test(data, pval_threshold, t_thresh, min_sig_chs=0, n_permutations=1024):
+
+    # Clusters out type
+    if type(t_thresh) == dict:
+        out_type = 'indices'
+    else:
+        out_type = 'mask'
+
+    significant_pvalues = None
+
+    # Permutations cluster test (TFCE if t_thresh as dict)
+    t_tfce, clusters, p_tfce, H0 = permutation_cluster_1samp_test(X=data, threshold=t_thresh, n_permutations=n_permutations,
+                                                                  out_type=out_type, n_jobs=4)
+
+    # Make clusters mask
+    if type(t_thresh) == dict:
+        # If TFCE use p-vaues of voxels directly
+        p_tfce = p_tfce.reshape(data.shape[-2:])  # Reshape to data's shape
+        clusters_mask_plot = p_tfce < pval_threshold
+        clusters_mask = None
+
+    else:
+        # Get significant clusters
+        good_clusters_idx = np.where(p_tfce < pval_threshold)[0]
+        significant_clusters = [clusters[idx] for idx in good_clusters_idx]
+        significant_pvalues = [p_tfce[idx] for idx in good_clusters_idx]
+
+        # Reshape to data's shape by adding all clusters into one bool array
+        clusters_mask = np.zeros(data[0].shape)
+        if len(significant_clusters):
+            for significant_cluster in significant_clusters:
+                clusters_mask += significant_cluster
+
+            if min_sig_chs:
+                clusters_mask_plot = clusters_mask.sum(axis=-1) > min_sig_chs
+            else:
+                clusters_mask_plot = clusters_mask.sum(axis=-1)
+            clusters_mask_plot = clusters_mask_plot.astype(bool)
+
+        else:
+            clusters_mask_plot = None
+
+    return clusters_mask, clusters_mask_plot, significant_pvalues
