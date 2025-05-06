@@ -482,16 +482,16 @@ def tfr_plotjoint(tfr, plot_baseline=None, bline_mode=None, plot_xlim=(None, Non
 
 def tfr_plotjoint_picks(tfr, plot_baseline=None, bline_mode=None, plot_xlim=(None, None), timefreqs=None, image_args=None, clusters_mask=None,
                         plot_max=True, plot_min=True, vmin=None, vmax=None, chs_id='mag', vlines_times=None, cmap='bwr',
-                        display_figs=False, save_fig=False, trf_fig_path=None, fname=None, fontsize=None, ticksize=None):
+                        display_figs=False, save_fig=False, trf_fig_path=None, fname=None, fontsize=18, ticksize=18):
     # Sanity check
     if save_fig and (not fname or not trf_fig_path):
         raise ValueError('Please provide path and filename to save figure. Else, set save_fig to false.')
 
     if fontsize:
-        matplotlib.rc({'font.size': fontsize})
+        plt.rcParams.update({'font.size': fontsize})
     if ticksize:
-        matplotlib.rc({'xtick.labelsize': ticksize})
-        matplotlib.rc({'ytick.labelsize': ticksize})
+        plt.rcParams.update({'xtick.labelsize': ticksize})
+        plt.rcParams.update({'ytick.labelsize': ticksize})
 
     if plot_baseline:
         tfr_plotjoint = tfr.copy().apply_baseline(baseline=plot_baseline, mode=bline_mode)
@@ -531,7 +531,7 @@ def tfr_plotjoint_picks(tfr, plot_baseline=None, bline_mode=None, plot_xlim=(Non
                                    title=title, show=display_figs, vmin=vmin, vmax=vmax)
 
     # Plot vertical lines
-    tf_ax = fig.axes[0]
+    tf_ax = fig.axes[-2]
     if not vlines_times:
         vlines_times = [0]
     for t in vlines_times:
@@ -558,7 +558,7 @@ def tfr_plotjoint_picks(tfr, plot_baseline=None, bline_mode=None, plot_xlim=(Non
     mask_params = dict(marker='o', markerfacecolor='white', markeredgecolor='k', linewidth=0, markersize=4, alpha=0.5)
 
     # Get topo axes and overwrite topoplots
-    topo_axes = fig.axes[1:-1]
+    topo_axes = fig.axes[:-2]
     for i, (ax, timefreq) in enumerate(zip(topo_axes, timefreqs)):
         ax.clear()
         topomap_kw = dict(ch_type='mag', tmin=timefreq[0], tmax=timefreq[0], fmin=timefreq[1], fmax=timefreq[1], mask=masks[i], mask_params=mask_params, colorbar=False, show=display_figs)
@@ -573,6 +573,7 @@ def tfr_plotjoint_picks(tfr, plot_baseline=None, bline_mode=None, plot_xlim=(Non
     if save_fig:
         save.fig(fig=fig, path=trf_fig_path, fname=fname)
 
+    return fig, tf_ax
 
 def mri_meg_alignment(subject, subject_code, dig, subjects_dir=os.path.join(paths.mri_path, 'FreeSurfer_out')):
 
