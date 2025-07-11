@@ -3,3 +3,4 @@ __pycache__/
 venv/
 /preprocessing_nb.ipynb
 test.ipynb
+pyxations/
